@@ -1,0 +1,875 @@
+@import "tailwindcss";
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+
+@theme {
+  --font-sans: "Space Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-void: #06060a;
+  --color-slab: #0b0b10;
+  --color-slab-2: #111118;
+  --color-slab-3: #18181f;
+  --color-bone: #ece8df;
+  --color-ash: #8d8a94;
+  --color-dim: #57555e;
+  --color-jev: #c6ff3d;
+  --color-warn: #ffb020;
+  --color-err: #ff4d5e;
+
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+:root {
+  --es-paper: #101015;
+  --es-ink: #e6e1d6;
+  --es-line: rgba(236, 232, 223, 0.08);
+  --es-line-2: rgba(236, 232, 223, 0.16);
+  --es-glass: rgba(11, 11, 16, 0.72);
+  --header-h: 52px;
+  --rail-h: 132px;
+  --tools-w: 60px;
+  --panel-w: 344px;
+  color-scheme: dark;
+}
+
+@media (max-width: 1023px) {
+  :root {
+    --panel-w: 0px;
+  }
+}
+
+@media (max-width: 639px) {
+  :root {
+    --rail-h: 96px;
+    --tools-w: 0px;
+    --header-h: 48px;
+  }
+}
+
+/* short screens (phones in landscape): the canvas needs the height */
+@media (max-height: 520px) {
+  :root {
+    --rail-h: 76px;
+    --header-h: 44px;
+    --tools-w: 52px;
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: var(--color-void);
+  color: var(--color-bone);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+::selection {
+  background: var(--color-jev);
+  color: var(--color-void);
+}
+
+/* ── Shell ─────────────────────────────────────────────────────────── */
+
+.es-app {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-columns: var(--tools-w) minmax(0, 1fr) var(--panel-w);
+  grid-template-rows: var(--header-h) minmax(0, 1fr) var(--rail-h);
+  grid-template-areas:
+    "header header header"
+    "tools canvas panel"
+    "rail rail rail";
+}
+
+/* grain + scanlines over everything, never interactive */
+.es-app::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 90;
+  opacity: 0.5;
+  background-image:
+    repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 3px),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+.es-surface {
+  background: var(--es-glass);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+}
+
+.es-hairline {
+  border-color: var(--es-line);
+}
+
+.es-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-ash);
+}
+
+.es-mono {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum" 1;
+}
+
+.es-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--es-line-2);
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-bone);
+  background: transparent;
+  transition:
+    background 160ms,
+    border-color 160ms,
+    color 160ms,
+    transform 160ms var(--ease-spring);
+  cursor: pointer;
+  user-select: none;
+}
+
+.es-btn:hover {
+  background: rgba(236, 232, 223, 0.06);
+  border-color: rgba(236, 232, 223, 0.3);
+}
+
+.es-btn:active {
+  transform: scale(0.97);
+}
+
+.es-btn:focus-visible,
+.es-focus:focus-visible {
+  outline: 1px solid var(--color-jev);
+  outline-offset: 2px;
+}
+
+.es-btn--jev {
+  background: var(--color-jev);
+  border-color: var(--color-jev);
+  color: var(--color-void);
+  font-weight: 500;
+}
+
+.es-btn--jev:hover {
+  background: #d8ff6e;
+  border-color: #d8ff6e;
+}
+
+.es-btn:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.es-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(236, 232, 223, 0.14) transparent;
+}
+
+/* ── The desk (own canvas engine) ────────────────────────────────── */
+
+.es-canvas,
+.es-desk {
+  background-color: var(--color-void);
+  background-image:
+    radial-gradient(rgba(236, 232, 223, 0.1) 1px, transparent 1.2px),
+    radial-gradient(1200px 700px at 30% 20%, rgba(90, 70, 160, 0.09), transparent 60%);
+}
+
+.es-desk__world {
+  position: absolute;
+  inset: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.es-shape {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: center;
+}
+
+.es-shape--selected {
+  outline: 1px dashed var(--color-jev);
+  outline-offset: 4px;
+}
+
+.es-shape--erasing {
+  opacity: 0.2;
+}
+
+.es-frame {
+  width: 100%;
+  height: 100%;
+  border: 1px solid rgba(236, 232, 223, 0.18);
+  background: rgba(236, 232, 223, 0.018);
+}
+
+.es-frame__title {
+  position: absolute;
+  left: 0;
+  top: -22px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-ash);
+}
+
+.es-marquee {
+  position: absolute;
+  border: 1px solid rgba(198, 255, 61, 0.7);
+  background: rgba(198, 255, 61, 0.05);
+}
+
+.es-selection {
+  position: absolute;
+  border: 1px solid var(--color-jev);
+}
+
+.es-selection--locked {
+  border-style: dashed;
+  border-color: var(--color-warn);
+}
+
+.es-selection__count {
+  position: absolute;
+  right: -1px;
+  top: -20px;
+  padding: 1px 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  background: var(--color-jev);
+  color: var(--color-void);
+}
+
+.es-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border: 1px solid var(--color-jev);
+  background: var(--color-void);
+  pointer-events: auto;
+}
+
+.es-handle--nw {
+  left: 0;
+  top: 0;
+  cursor: nwse-resize;
+}
+
+.es-handle--ne {
+  left: 100%;
+  top: 0;
+  cursor: nesw-resize;
+}
+
+.es-handle--se {
+  left: 100%;
+  top: 100%;
+  cursor: nwse-resize;
+}
+
+.es-handle--sw {
+  left: 0;
+  top: 100%;
+  cursor: nesw-resize;
+}
+
+.es-handle--rotate {
+  left: 50%;
+  top: -28px;
+  border-radius: 50%;
+  cursor: grab;
+}
+
+/* fingers need bigger targets than cursors */
+@media (pointer: coarse) {
+  .es-handle {
+    width: 22px;
+    height: 22px;
+    margin: -11px 0 0 -11px;
+    border-radius: 50%;
+  }
+
+  .es-handle--rotate {
+    top: -40px;
+  }
+
+  .es-handle--rotate::after {
+    left: 10px;
+    top: 21px;
+  }
+}
+
+.es-handle--rotate::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 9px;
+  width: 1px;
+  height: 18px;
+  background: var(--color-jev);
+}
+
+/* ── Home ──────────────────────────────────────────────────────────── */
+
+.es-home-bg {
+  background:
+    radial-gradient(900px 600px at 80% 10%, rgba(198, 255, 61, 0.06), transparent 60%),
+    radial-gradient(1000px 700px at 10% 60%, rgba(120, 80, 220, 0.08), transparent 60%),
+    radial-gradient(rgba(236, 232, 223, 0.07) 1px, transparent 1.2px);
+  background-size:
+    auto,
+    auto,
+    28px 28px;
+}
+
+/* ── Sketch boards ─────────────────────────────────────────────────── */
+
+.es-board {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 2px;
+  box-shadow:
+    0 0 0 1px rgba(236, 232, 223, 0.09),
+    0 24px 60px -24px rgba(0, 0, 0, 0.9),
+    0 2px 0 rgba(255, 255, 255, 0.02) inset;
+  transition: box-shadow 260ms var(--ease-out-expo);
+}
+
+.es-board__art {
+  display: block;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.es-board--selected,
+.es-board--decision-ready {
+  box-shadow:
+    0 0 0 1px rgba(198, 255, 61, 0.55),
+    0 0 0 6px rgba(198, 255, 61, 0.06),
+    0 30px 80px -30px rgba(0, 0, 0, 0.95);
+}
+
+.es-board--analyzing {
+  box-shadow:
+    0 0 0 1px rgba(198, 255, 61, 0.8),
+    0 0 40px -6px rgba(198, 255, 61, 0.35),
+    0 30px 80px -30px rgba(0, 0, 0, 0.95);
+  animation: es-board-pulse 900ms var(--ease-out-expo) infinite;
+}
+
+.es-board--chaos {
+  animation: es-float 9s ease-in-out infinite alternate;
+}
+
+.es-board__label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -22px;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-ash);
+  white-space: nowrap;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.es-board__num {
+  color: var(--color-bone);
+}
+
+.es-board__title {
+  font-family: var(--font-sans);
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-size: 12px;
+  color: var(--color-bone);
+  opacity: 0.85;
+}
+
+.es-board__cat {
+  margin-left: auto;
+  opacity: 0.6;
+}
+
+.es-board__lock--sketch {
+  left: auto;
+  right: 8px;
+}
+
+.es-board__lock {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  padding: 3px 6px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  background: rgba(6, 6, 10, 0.8);
+  border: 1px solid var(--es-line-2);
+  color: var(--color-warn);
+  pointer-events: none;
+}
+
+.es-board__pulse {
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--color-jev);
+  border-radius: 2px;
+  animation: es-ring-out 900ms var(--ease-out-expo) forwards;
+  pointer-events: none;
+}
+
+.es-region-hover {
+  fill: rgba(236, 232, 223, 0.07);
+  stroke: rgba(198, 255, 61, 0.7);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+  animation: es-march 900ms linear infinite;
+  pointer-events: none;
+}
+
+.es-region-focus {
+  fill: rgba(198, 255, 61, 0.06);
+  stroke: var(--color-jev);
+  stroke-width: 2.2;
+  stroke-dasharray: 7 5;
+  animation:
+    es-march 700ms linear infinite,
+    es-focus-pulse 1400ms ease-in-out infinite;
+  pointer-events: none;
+}
+
+.es-scan {
+  fill: var(--color-jev);
+  opacity: 0.7;
+  filter: drop-shadow(0 0 8px var(--color-jev));
+  animation: es-scan 700ms cubic-bezier(0.45, 0, 0.55, 1) infinite alternate;
+}
+
+/* ── Paint engine keyframes ────────────────────────────────────────── */
+
+@keyframes es-grow {
+  from {
+    transform: scale(0.02);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes es-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes es-fly {
+  from {
+    transform: translate(var(--dx), var(--dy)) scale(0.2);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes es-orbit {
+  from {
+    transform: translate(var(--dx), var(--dy)) rotate(200deg) scale(0);
+    opacity: 0;
+  }
+  45% {
+    opacity: 1;
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes es-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes es-pop {
+  from {
+    transform: scale(0);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes es-rise {
+  from {
+    transform: translateY(var(--from));
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes es-wipe {
+  from {
+    transform: translateX(var(--from));
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.es-shimmer {
+  animation: es-shimmer 7s ease-in-out infinite alternate;
+}
+
+@keyframes es-shimmer {
+  to {
+    transform: translateX(var(--shift));
+  }
+}
+
+.es-twinkle {
+  animation: es-twinkle 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes es-twinkle {
+  to {
+    opacity: 0.15;
+  }
+}
+
+.es-drift {
+  animation: es-drift 7s ease-in-out infinite alternate;
+}
+
+@keyframes es-drift {
+  to {
+    transform: translate(var(--dx), var(--dy));
+  }
+}
+
+.paint-exit {
+  animation: es-exit 460ms cubic-bezier(0.7, 0, 0.84, 0) forwards;
+}
+
+@keyframes es-exit {
+  to {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+}
+
+@keyframes es-board-pulse {
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(198, 255, 61, 1),
+      0 0 60px -4px rgba(198, 255, 61, 0.45),
+      0 30px 80px -30px rgba(0, 0, 0, 0.95);
+  }
+}
+
+@keyframes es-float {
+  from {
+    transform: translate(-3px, 2px) rotate(-0.4deg);
+  }
+  to {
+    transform: translate(3px, -3px) rotate(0.4deg);
+  }
+}
+
+@keyframes es-ring-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes es-march {
+  to {
+    stroke-dashoffset: -18;
+  }
+}
+
+@keyframes es-focus-pulse {
+  50% {
+    fill: rgba(198, 255, 61, 0.12);
+  }
+}
+
+@keyframes es-scan {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(494px);
+  }
+}
+
+/* ── Sampling carousel ──────────────────────────────────────────── */
+
+.es-decor-label {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.16em;
+}
+
+.es-decor-flow {
+  animation: es-march 600ms linear infinite;
+}
+
+.es-stage-glow {
+  animation: es-breathe 1.4s ease-in-out infinite;
+}
+
+.es-stage-flash {
+  animation: es-stage-flash 900ms var(--ease-out-expo) forwards;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@keyframes es-stage-flash {
+  from {
+    stroke-width: 14;
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    stroke-width: 1;
+    opacity: 0;
+    transform: scale(1.12);
+  }
+}
+
+.es-streak {
+  animation: es-streak 520ms cubic-bezier(0.5, 0, 0.2, 1) forwards;
+}
+
+@keyframes es-streak {
+  from {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  to {
+    transform: translateX(var(--run));
+    opacity: 0;
+  }
+}
+
+.es-slot-land {
+  animation: es-slot-land 700ms var(--ease-out-expo);
+}
+
+@keyframes es-slot-land {
+  from {
+    stroke-width: 10;
+    stroke-opacity: 1;
+    fill: rgba(198, 255, 61, 0.2);
+  }
+}
+
+/* ── Material rail ─────────────────────────────────────────────────── */
+
+.es-rail {
+  grid-area: rail;
+  position: relative;
+  overflow: hidden;
+  border-top: 1px solid var(--es-line);
+  background:
+    linear-gradient(to bottom, rgba(6, 6, 10, 0.2), rgba(6, 6, 10, 0.95)),
+    repeating-linear-gradient(90deg, rgba(236, 232, 223, 0.03) 0 1px, transparent 1px 46px),
+    var(--color-slab);
+  touch-action: pan-y;
+}
+
+.es-rail::before,
+.es-rail::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 90px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.es-rail::before {
+  left: 0;
+  background: linear-gradient(to right, var(--color-slab), transparent);
+}
+
+.es-rail::after {
+  right: 0;
+  background: linear-gradient(to left, var(--color-slab), transparent);
+}
+
+.es-chip {
+  position: absolute;
+  top: 0;
+  will-change: transform;
+  cursor: grab;
+  transition: filter 200ms;
+  animation: es-chip-drift 6s ease-in-out infinite alternate;
+}
+
+.es-chip svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: drop-shadow(0 10px 14px rgba(0, 0, 0, 0.6));
+}
+
+.es-chip--back {
+  opacity: 0.42;
+  filter: saturate(0.7) blur(0.4px);
+}
+
+.es-chip--candidate svg {
+  filter: drop-shadow(0 0 12px rgba(198, 255, 61, 0.55)) drop-shadow(0 10px 14px rgba(0, 0, 0, 0.6));
+}
+
+.es-chip--armed::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border: 1px dashed var(--color-jev);
+  border-radius: 50%;
+  animation: es-spin 6s linear infinite;
+}
+
+@keyframes es-chip-drift {
+  from {
+    rotate: -4deg;
+  }
+  to {
+    rotate: 4deg;
+  }
+}
+
+@keyframes es-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── Jev instrument ────────────────────────────────────────────────── */
+
+.es-field-bar {
+  position: relative;
+  height: 6px;
+  background: rgba(236, 232, 223, 0.06);
+  overflow: hidden;
+}
+
+.es-field-bar__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  transform-origin: left center;
+}
+
+.es-field-bar__fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(90deg, transparent 0 3px, rgba(6, 6, 10, 0.55) 3px 4px);
+}
+
+.es-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.es-dot--live {
+  background: var(--color-jev);
+  box-shadow: 0 0 10px var(--color-jev);
+  animation: es-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes es-breathe {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.es-grid-bg {
+  background-image:
+    linear-gradient(var(--es-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--es-line) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.es-wave {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: es-wave 460ms ease-in-out infinite alternate;
+}
+
+@keyframes es-wave {
+  from {
+    transform: scaleY(1);
+  }
+  to {
+    transform: scaleY(-1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
