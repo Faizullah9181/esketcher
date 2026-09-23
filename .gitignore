@@ -1,22 +1,28 @@
+# Secrets
+.env
+.env.local
+.env.*.local
+
+# Python
 __pycache__/
 *.py[cod]
 *.egg-info/
 .venv/
-venv/
 .pytest_cache/
 .ruff_cache/
+.coverage
+htmlcov/
+*.db
+
+# Node
 node_modules/
 dist/
-build/
-.env
-.env.local
+coverage/
+
+# Editors / OS
 .idea/
 .vscode/
 *.swp
 *.swo
 .DS_Store
-terraform/.terraform/
-terraform/*.tfstate
-terraform/*.tfstate.*
-terraform/.terraform.lock.hcl
 *.log
