@@ -2,7 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.deps import get_jev, rate_limited
+from app.deps import get_jev, jev_limited
 from app.models.decision import (
     DecisionRequest,
     DecisionResponse,
@@ -12,7 +12,7 @@ from app.models.decision import (
 )
 from app.services.jev import CandidateError, JevClient, JevError
 
-router = APIRouter(prefix="/jev", tags=["Jev"], dependencies=[Depends(rate_limited)])
+router = APIRouter(prefix="/jev", tags=["Jev"], dependencies=[Depends(jev_limited)])
 
 
 def _as_http(exc: Exception) -> HTTPException:

@@ -16,6 +16,10 @@ def make_settings(tmp_path: Path, **overrides: Any) -> Settings:
         "jev_mode": "mock",
         "database_url": f"sqlite+aiosqlite:///{tmp_path / 'test.db'}",
         "jev_rate_limit_per_minute": 1000,
+        "rate_limit_per_minute": 10_000,
+        "project_writes_per_minute": 1000,
+        "jev_daily_limit_per_client": 0,
+        "jev_daily_budget": 0,
     }
     values.update(overrides)
     return Settings(_env_file=None, **values)

@@ -7,7 +7,7 @@ from pydantic import ValidationError
 from app.config import Settings
 from app.logging_config import JsonFormatter, configure_logging
 from app.models.decision import DecisionRequest
-from app.rate_limit import RateLimiter
+from app.rate_limit import DAY, DailyQuota, RateLimiter
 from app.services import paint_selector
 from app.services.jev import build_provider
 from app.services.sketch_analyzer import build_state, describe_level
@@ -77,6 +77,39 @@ def test_rate_limiter_bounds_memory() -> None:
     for key in ("a", "b", "c"):
         limiter.check(key)
     assert len(limiter._hits) == 1
+
+
+def test_rate_limiter_custom_window_and_disabled() -> None:
+    now = [0.0]
+    limiter = RateLimiter(1, window=10, clock=lambda: now[0])
+    assert limiter.check("ip") is None
+    assert limiter.check("ip") == 10
+    assert limiter.check("other") is None  # keys are independent
+    now[0] = 10
+    assert limiter.check("ip") is None
+    off = RateLimiter(0)
+    assert all(off.check("ip") is None for _ in range(100))
+
+
+def test_daily_quota_resets_at_midnight_utc() -> None:
+    now = [DAY * 5 + 3600.0]  # 01:00 UTC
+    quota = DailyQuota(2, clock=lambda: now[0])
+    assert quota.check("ip") is None
+    assert quota.check("ip") is None
+    assert quota.check("ip") == DAY - 3600
+    assert quota.check("other") is None
+    now[0] = DAY * 6  # midnight
+    assert quota.check("ip") is None
+    assert all(DailyQuota(0).check("ip") is None for _ in range(100))
+
+
+def test_daily_quota_refuses_new_keys_when_full() -> None:
+    quota = DailyQuota(5, clock=lambda: 100.0)
+    quota.max_keys = 2
+    assert quota.check("a") is None
+    assert quota.check("b") is None
+    assert quota.check("c") is not None  # no room: refused, not a reset for everyone
+    assert quota.check("a") is None
 
 
 def test_real_mode_requires_key() -> None:

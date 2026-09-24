@@ -9,12 +9,15 @@ from fastapi.responses import JSONResponse
 
 from app.config import Settings, get_settings
 from app.db import Database
+from app.deps import client_key
 from app.logging_config import configure_logging
-from app.rate_limit import RateLimiter
+from app.rate_limit import Limits
 from app.routes import decisions, health, materials, projects, sketches
 from app.services.jev import JevClient, JevProvider, build_provider
 
 logger = logging.getLogger("esketcher.api")
+
+BODY_METHODS = frozenset({"POST", "PUT", "PATCH"})
 
 
 def create_app(settings: Settings | None = None, provider: JevProvider | None = None) -> FastAPI:
@@ -26,7 +29,7 @@ def create_app(settings: Settings | None = None, provider: JevProvider | None = 
         app.state.db = Database(settings.database_url)
         await app.state.db.create_all()
         app.state.jev = JevClient(provider or build_provider(settings))
-        app.state.rate_limiter = RateLimiter(settings.jev_rate_limit_per_minute)
+        app.state.limits = Limits.from_settings(settings)
         logger.info("startup", extra={"jev_mode": app.state.jev.provider.mode, "env": settings.env})
         try:
             yield
@@ -42,12 +45,31 @@ def create_app(settings: Settings | None = None, provider: JevProvider | None = 
         redoc_url=None,
         openapi_url="/openapi.json" if settings.docs_enabled else None,
     )
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origin_list,
-        allow_methods=["GET", "POST", "PUT"],
-        allow_headers=["Content-Type", "X-Request-ID"],
-    )
+
+    def refuse(
+        status: int, code: str, message: str, retry_after: float | None = None
+    ) -> JSONResponse:
+        headers = {"Retry-After": str(int(retry_after) + 1)} if retry_after is not None else None
+        return JSONResponse(
+            {"detail": {"code": code, "message": message}}, status_code=status, headers=headers
+        )
+
+    # Starlette runs the last-added middleware first: CORS (outermost, so refusals
+    # still carry CORS headers), then the request log, then this guard.
+    @app.middleware("http")
+    async def guard(request: Request, call_next):
+        if request.url.path.startswith("/api"):
+            if request.method in BODY_METHODS:
+                length = request.headers.get("content-length", "")
+                # the server enforces the declared length, so checking it bounds the body
+                if not length.isdigit():
+                    return refuse(411, "length_required", "Send a Content-Length header")
+                if int(length) > settings.max_project_bytes:
+                    return refuse(413, "too_large", "Request body is too large")
+            wait = request.app.state.limits.requests.check(client_key(request))
+            if wait is not None:
+                return refuse(429, "rate_limited", "Too many requests, slow down.", wait)
+        return await call_next(request)
 
     @app.middleware("http")
     async def request_log(request: Request, call_next):
@@ -73,6 +95,14 @@ def create_app(settings: Settings | None = None, provider: JevProvider | None = 
             },
         )
         return response
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origin_list,
+        allow_methods=["GET", "POST", "PUT"],
+        allow_headers=["Content-Type", "X-Request-ID"],
+        expose_headers=["Retry-After", "X-Request-ID"],
+    )
 
     for router in (health, sketches, materials, decisions, projects):
         app.include_router(router.router, prefix="/api")

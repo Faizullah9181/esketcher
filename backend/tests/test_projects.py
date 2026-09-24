@@ -39,3 +39,18 @@ def test_oversized_project_is_rejected(client_for) -> None:
     client = client_for(max_project_bytes=100)
     response = client.post("/api/projects", json={"snapshot": {"x": "y" * 200}})
     assert response.status_code == 413
+
+
+def test_project_writes_are_rate_limited(client_for) -> None:
+    client = client_for(project_writes_per_minute=2)
+    created = client.post("/api/projects", json={"snapshot": {}}).json()
+    assert (
+        client.put(
+            f"/api/projects/{created['id']}", json={"snapshot": {}, "revision": created["revision"]}
+        ).status_code
+        == 200
+    )
+    blocked = client.post("/api/projects", json={"snapshot": {}})
+    assert blocked.status_code == 429
+    assert blocked.json()["detail"]["code"] == "rate_limited"
+    assert client.get(f"/api/projects/{created['id']}").status_code == 200  # reads are not writes

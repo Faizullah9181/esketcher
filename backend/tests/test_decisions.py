@@ -183,3 +183,36 @@ def test_rate_limit(client_for) -> None:
     assert blocked.status_code == 429
     assert blocked.json()["detail"]["code"] == "rate_limited"
     assert int(blocked.headers["retry-after"]) >= 1
+
+
+def test_daily_limit_per_client(client_for) -> None:
+    client = client_for(jev_daily_limit_per_client=2)
+    for _ in range(2):
+        assert client.post("/api/jev/decide", json=decision_body()).status_code == 200
+    blocked = client.post("/api/jev/decide", json=decision_body())
+    assert blocked.status_code == 429
+    assert blocked.json()["detail"]["code"] == "daily_limit"
+    assert int(blocked.headers["retry-after"]) <= 86_401
+
+
+def test_daily_budget_is_shared_by_every_client(client_for) -> None:
+    client = client_for(jev_daily_budget=3)
+    for _ in range(3):
+        assert client.post("/api/jev/decide", json=decision_body()).status_code == 200
+    blocked = client.post(
+        "/api/jev/palette",
+        json={"target": decision_body()["target"], "context": decision_body()["context"]},
+    )
+    assert blocked.status_code == 429
+    assert blocked.json()["detail"]["code"] == "jev_budget"
+
+
+def test_blocked_clients_do_not_spend_the_budget(client_for) -> None:
+    client = client_for(jev_rate_limit_per_minute=1, jev_daily_budget=5)
+    assert client.post("/api/jev/decide", json=decision_body()).status_code == 200
+    for _ in range(10):
+        assert (
+            client.post("/api/jev/decide", json=decision_body()).json()["detail"]["code"]
+            == "rate_limited"
+        )
+    assert client.app.state.limits.jev_budget._counts == {"*": 1}
