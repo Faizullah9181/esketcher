@@ -45,7 +45,7 @@ function useSelectionSync(desk: Desk) {
   }, [selectedBoard]);
 
   useEffect(() => {
-    if (!focus || tool === "jev" || useStudio.getState().sim.status === "running") return;
+    if (useStudio.getState().offline || !focus || tool === "jev" || useStudio.getState().sim.status === "running") return;
     const timer = setTimeout(() => {
       const { active, sim } = useStudio.getState();
       if (sim.status === "running") return;

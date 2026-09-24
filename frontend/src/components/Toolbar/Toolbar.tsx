@@ -1,5 +1,6 @@
 import { Brush, Copy, Eraser, Frame, Hand, MousePointer2, PaintBucket, PenLine, Pipette, Plus, ZoomIn, type LucideIcon } from "lucide-react";
 import { JevGlyph } from "@/components/common/JevGlyph";
+import { OFFLINE_MESSAGE } from "@/services/api";
 import { useDeskValue } from "@/hooks/useDesk";
 import type { Desk } from "@/lib/desk/desk";
 import type { ToolId } from "@/lib/desk/types";
@@ -51,6 +52,7 @@ function ToolButton({ active, label, kbd, onClick, children, desktop }: { active
 
 function Tools({ desk }: { desk: Desk }) {
   const tool = useDeskValue((s) => s.tool);
+  const offline = useStudio((s) => s.offline);
   const setDrawer = useStudio((s) => s.setDrawer);
   const duplicate = () => desk.duplicate(desk.state.selection);
   return (
@@ -75,11 +77,13 @@ function Tools({ desk }: { desk: Desk }) {
       <div className="sm:mt-auto">
         <button
           onClick={() => desk.setTool("jev")}
-          aria-label="Jev: click anything and Jev chooses its material"
+          disabled={offline}
+          title={offline ? OFFLINE_MESSAGE : undefined}
+          aria-label={offline ? "Jev (offline: server unreachable)" : "Jev: click anything and Jev chooses its material"}
           aria-pressed={tool === "jev"}
           className={`es-focus group relative grid h-12 w-12 shrink-0 place-items-center rounded-full border transition-all duration-300 max-sm:h-10 max-sm:w-10 sm:h-11 sm:w-11 [@media(max-height:520px)]:h-9 [@media(max-height:520px)]:w-9 ${
             tool === "jev" ? "border-jev bg-jev/10 text-bone shadow-[0_0_24px_-4px_var(--color-jev)]" : "border-bone/15 text-bone hover:border-jev/60"
-          }`}
+          } disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-bone/15`}
         >
           <JevGlyph size={22} active={tool === "jev"} />
           <span className="es-mono pointer-events-none absolute -bottom-4 text-[8px] tracking-[0.2em] text-jev max-sm:hidden [@media(max-height:520px)]:hidden">JEV</span>

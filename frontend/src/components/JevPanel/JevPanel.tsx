@@ -32,22 +32,38 @@ const spatial = { initial: { opacity: 0, x: 14 }, animate: { opacity: 1, x: 0 },
 function IdlePanel() {
   const history = useStudio((s) => s.history);
   const health = useStudio((s) => s.health);
+  const offline = useStudio((s) => s.offline);
   const stats = historyStats(history);
   return (
     <motion.div key="idle" {...spatial} className="flex flex-1 flex-col">
       <div className={section}>
         <div className="flex items-center justify-between">
           <span className="es-label !text-bone">Jev system</span>
-          <span className="es-mono text-[10px] text-jev">{health?.jev.online ? "READY" : "STANDBY"}</span>
+          <span className="es-mono text-[10px] text-jev">{offline ? "DEMO" : health?.jev.online ? "READY" : "STANDBY"}</span>
         </div>
-        <p className="mt-6 text-[26px] font-medium leading-[1.05] tracking-[-0.03em]">
-          Select something
-          <br />
-          and I'll choose
-          <br />
-          <span className="text-jev">a material.</span>
-        </p>
-        <p className="mt-4 text-[12px] leading-relaxed text-ash">Click a sketch to analyse it, or take the Jev tool (J) and click any region to decide and paint in one move.</p>
+        {offline ? (
+          <>
+            <p className="mt-6 text-[26px] font-medium leading-[1.05] tracking-[-0.03em]">
+              Jev is offline
+              <br />
+              <span className="text-jev">right now.</span>
+            </p>
+            <p className="mt-4 text-[12px] leading-relaxed text-ash">
+              The server isn't reachable, so this is demo mode. Everything else works: sketches, 121 materials, the canvas and manual painting. Click a material in the stream, then take the paint tool (B) and click a region. Reload to reconnect.
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="mt-6 text-[26px] font-medium leading-[1.05] tracking-[-0.03em]">
+              Select something
+              <br />
+              and I'll choose
+              <br />
+              <span className="text-jev">a material.</span>
+            </p>
+            <p className="mt-4 text-[12px] leading-relaxed text-ash">Click a sketch to analyse it, or take the Jev tool (J) and click any region to decide and paint in one move.</p>
+          </>
+        )}
       </div>
       <div className={`${section} grid grid-cols-2 gap-4`}>
         <div>
@@ -61,7 +77,7 @@ function IdlePanel() {
         <div className="col-span-2 flex items-center justify-between">
           <span className="es-label">provider</span>
           <span className="es-mono text-[11px] uppercase">
-            {health ? `${health.jev.mode} · ${health.jev.model}` : "unreachable"}
+            {offline ? "server unreachable" : health ? `${health.jev.mode} · ${health.jev.model}` : "unreachable"}
           </span>
         </div>
       </div>
@@ -77,6 +93,7 @@ function TargetPanel({ desk, board }: { desk: Desk; board: BoardShape }) {
   const { active, focus, decide, retry, apply } = useJevDecision();
   const materials = useStudio((s) => s.materialsById);
   const setFocus = useStudio((s) => s.setFocus);
+  const offline = useStudio((s) => s.offline);
   const [manual, setManual] = useState(false);
   const regions = boardArt(board).regions;
   const region = focus?.regionId ? regions.find((r) => r.id === focus.regionId) : null;
@@ -161,6 +178,12 @@ function TargetPanel({ desk, board }: { desk: Desk; board: BoardShape }) {
               Locked to <span className="text-warn">{materials.get(locked)?.name}</span>. Jev is bypassed for this sketch.
             </div>
           </div>
+        ) : !active && offline ? (
+          <NativeError code="offline">
+            <button className="es-btn es-btn--jev" onClick={() => setManual(true)}>
+              Pick a material
+            </button>
+          </NativeError>
         ) : !active ? (
           <button className="es-btn es-btn--jev w-full" onClick={decide}>
             <JevGlyph size={16} /> Ask Jev

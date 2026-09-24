@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, api, isAbort } from "./api";
+import { ApiError, OFFLINE_MESSAGE, OFFLINE_PROJECT_KEY, api, createOfflineApi, goOffline, isAbort, isOffline, resetApiMode } from "./api";
 
 function mockFetch(response: Partial<Response> & { json?: () => Promise<unknown> }) {
   const fn = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({}), ...response });
@@ -8,7 +8,10 @@ function mockFetch(response: Partial<Response> & { json?: () => Promise<unknown>
   return fn;
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  resetApiMode();
+});
 
 describe("api", () => {
   it("calls every endpoint with the right method and path", async () => {
@@ -63,5 +66,79 @@ describe("api", () => {
     expect(await api.health().catch((e) => e)).toBe(abort);
     expect(isAbort(abort)).toBe(true);
     expect(isAbort(new Error("x"))).toBe(false);
+  });
+});
+
+describe("offline api", () => {
+  const memoryStorage = () => {
+    const data = new Map<string, string>();
+    return { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) };
+  };
+
+  it("serves the bundled catalog and never touches the network", async () => {
+    const fetch = mockFetch({});
+    const offline = createOfflineApi(memoryStorage());
+    const [materials, sketches, palettes] = await Promise.all([offline.materials(), offline.sketches(), offline.palettes()]);
+    expect(materials).toHaveLength(121);
+    expect(sketches).toHaveLength(105);
+    expect(palettes).toHaveLength(7);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("refuses every Jev call with the offline code instead of inventing an answer", async () => {
+    const offline = createOfflineApi(memoryStorage());
+    for (const call of [offline.health(), offline.palette({} as never), offline.decide({} as never), offline.retry({} as never)]) {
+      await expect(call).rejects.toMatchObject({ status: 0, code: "offline", message: OFFLINE_MESSAGE });
+    }
+  });
+
+  it("keeps the project in storage across visits", async () => {
+    const storage = memoryStorage();
+    const first = createOfflineApi(storage);
+    await expect(first.getProject("local")).rejects.toMatchObject({ status: 404 });
+    const created = await first.createProject("My universe", { desk: 1 });
+    const saved = await first.saveProject(created.id, { desk: 2 }, created.revision);
+    expect(saved.revision).toBe(2);
+
+    const second = createOfflineApi(storage);
+    expect((await second.getProject("local")).snapshot).toEqual({ desk: 2 });
+    await expect(second.saveProject("other", {}, 1)).rejects.toBeInstanceOf(ApiError);
+    expect(JSON.parse(storage.getItem(OFFLINE_PROJECT_KEY)!).revision).toBe(2);
+  });
+
+  it("still works for the visit when storage is blocked", async () => {
+    const offline = createOfflineApi({
+      getItem: () => {
+        throw new Error("blocked");
+      },
+      setItem: () => {
+        throw new Error("blocked");
+      },
+    });
+    const created = await offline.createProject("n", { a: 1 });
+    expect((await offline.getProject(created.id)).snapshot).toEqual({ a: 1 });
+    const noStorage = createOfflineApi(null);
+    await noStorage.createProject("n", {});
+    expect((await noStorage.saveProject("local", { b: 1 }, 1)).revision).toBe(2);
+  });
+});
+
+describe("api mode", () => {
+  it("treats an HTML fallback page as no backend", async () => {
+    mockFetch({ json: async () => JSON.parse("<!doctype html>") });
+    await expect(api.materials()).rejects.toMatchObject({ status: 0, code: "network" });
+  });
+
+  it("switches every call to the offline adapter, once", async () => {
+    const fetch = mockFetch({ json: async () => [] });
+    expect(isOffline()).toBe(false);
+    const offline = goOffline();
+    expect(goOffline()).toBe(offline);
+    expect(isOffline()).toBe(true);
+    expect(await api.materials()).toHaveLength(121);
+    await expect(api.decide({} as never)).rejects.toMatchObject({ code: "offline" });
+    expect(fetch).not.toHaveBeenCalled();
+    resetApiMode();
+    expect(isOffline()).toBe(false);
   });
 });

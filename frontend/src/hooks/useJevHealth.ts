@@ -7,7 +7,9 @@ const POLL_MS = 30_000;
 
 /** Keep the header's JEV / API lights honest. */
 export function useJevHealth(): void {
+  const offline = useStudio((s) => s.offline);
   useEffect(() => {
+    if (offline) return useStudio.getState().setHealth(null, "offline");
     let cancelled = false;
     const check = () =>
       api
@@ -20,5 +22,5 @@ export function useJevHealth(): void {
       cancelled = true;
       clearInterval(timer);
     };
-  }, []);
+  }, [offline]);
 }

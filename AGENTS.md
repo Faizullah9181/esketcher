@@ -11,7 +11,8 @@ Commands: `backend/Makefile`, `frontend/package.json` scripts. Run backend tools
 - **Candidate field is chosen client-side** (`frontend/src/lib/jev/candidates.ts`); the backend validates ids against its catalog and builds the question (`backend/app/services/paint_selector.py`). Jev ranks; it never sees materials outside the field.
 - **Region ids are persisted.** Saved paints key on `region.id` (`kind-index`) produced by the generators in `frontend/src/lib/sketchArt/generators/`. Reordering or inserting `b.region(...)` calls re-labels saved paints; append new regions at the end of a variant.
 - **Mock noise is seeded from sketch + target + retry only**, so canvas context (painted neighbours, chaos) shifts scores deterministically. Keep it that way; `test_mock_avoids_already_painted_neighbours` guards it.
-- **Catalog is backend-owned** (`backend/app/catalog/`); the frontend renders visuals from its metadata. A material's look is its `type` + `palette` + `roughness`/`viscosity`, rendered in `frontend/src/lib/paintEngine/PaintLayer.tsx`.
+- **Demo mode never fakes Jev.** When the boot-time catalog load fails, `useCatalog` calls `goOffline()` (`frontend/src/services/api.ts`) and sets the store's `offline` flag. `VITE_OFFLINE=1` forces this for a whole build. `api` then delegates to `createOfflineApi()`, which reads the bundled catalog, saves to localStorage, and rejects every Jev call with code `offline`. Gate new Jev entry points on `useStudio` → `offline`. The mode is chosen once per visit; don't switch it live, because saves would split between server and browser.
+- **Catalog is backend-owned** (`backend/app/catalog/`); the frontend renders visuals from its metadata. After catalog changes run `make catalog` to regenerate `frontend/src/data/catalog.json`; `test_catalog.py` fails until you do. A material's look is its `type` + `palette` + `roughness`/`viscosity`, rendered in `frontend/src/lib/paintEngine/PaintLayer.tsx`.
 
 ## Testing
 

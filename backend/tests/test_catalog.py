@@ -1,4 +1,7 @@
 from collections import Counter
+from pathlib import Path
+
+import pytest
 
 from app.catalog.materials import MATERIALS
 from app.catalog.sketches import SKETCHES
@@ -38,3 +41,26 @@ def test_sketches_list_filter_and_get(client) -> None:
     assert eyes and all(s["category"] == "eyes" for s in eyes)
     assert client.get("/api/sketches/sk-001").json()["title"] == SKETCHES[0].title
     assert client.get("/api/sketches/sk-999").status_code == 404
+
+
+def test_offline_snapshot_matches_the_api() -> None:
+    from app.catalog.export import SNAPSHOT, render, snapshot
+
+    if not SNAPSHOT.exists():  # pragma: no cover - backend-only checkout
+        pytest.skip("frontend not checked out")
+    assert SNAPSHOT.read_text(encoding="utf-8") == render(snapshot()), "run `make catalog`"
+
+
+def test_export_writes_the_snapshot(tmp_path: Path) -> None:
+    import json
+
+    from app.catalog.export import main
+
+    target = tmp_path / "data" / "catalog.json"
+    main([str(target)])
+    data = json.loads(target.read_text(encoding="utf-8"))
+    assert (
+        len(data["materials"]) == 121
+        and len(data["sketches"]) == 105
+        and len(data["palettes"]) == 7
+    )

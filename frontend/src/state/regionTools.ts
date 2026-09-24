@@ -16,7 +16,7 @@ export function hoverRegion(board: BoardShape | null, page: Vec): void {
   useStudio.getState().setHover(board ? { boardId: board.id, regionId: regionUnder(board, page) } : null);
 }
 
-/** Jev: decide and paint. Paint: apply the armed material. Pick: arm the material under the cursor. */
+/** Jev: decide and paint (the paint tool when Jev is offline). Paint: apply the armed material. Pick: arm the material under the cursor. */
 export function actOnRegion(tool: RegionToolId, board: BoardShape, page: Vec): void {
   const store = useStudio.getState();
   const desk = store.desk;
@@ -24,9 +24,9 @@ export function actOnRegion(tool: RegionToolId, board: BoardShape, page: Vec): v
   const regionId = regionUnder(board, page);
   desk.select([board.id]);
   store.setFocus({ boardId: board.id, regionId });
-  if (tool === "jev") {
+  if (tool === "jev" && !store.offline) {
     void requestDecision({ boardId: board.id, regionId, autoApply: true });
-  } else if (tool === "paint") {
+  } else if (tool === "paint" || tool === "jev") {
     if (store.armedMaterial) applyManual(store.armedMaterial, { boardId: board.id, regionId });
     else store.setDrawer("materials");
   } else {

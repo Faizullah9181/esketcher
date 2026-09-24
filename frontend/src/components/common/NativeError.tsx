@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 const COPY: Record<string, { title: string; body: string }> = {
+  offline: { title: "Jev is offline here", body: "The eSketcher server isn't reachable, so Jev can't decide. Paint it yourself, or reload to reconnect." },
   network: { title: "Studio link interrupted", body: "The backend can't be reached. Your canvas is safe; changes will sync when it's back." },
   jev_unavailable: { title: "Jev connection interrupted", body: "The material field couldn't be evaluated." },
   jev_timeout: { title: "Jev took too long", body: "The decision timed out before the field settled." },
