@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: esketcher-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-esketcher}
+      POSTGRES_USER: ${POSTGRES_USER:-esketcher}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-esketcher} -d ${POSTGRES_DB:-esketcher}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - esketcher_postgres_data:/var/lib/postgresql/data
+    networks:
+      - esketcher
+
+  backend:
+    build:
+      context: ./backend
+    container_name: esketcher-backend
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-esketcher}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-esketcher}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8010}:8000"
+    networks:
+      - esketcher
+
+volumes:
+  esketcher_postgres_data:
+
+networks:
+  esketcher:
+    driver: bridge

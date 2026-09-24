@@ -1,0 +1,119 @@
+name: Deploy to VM
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-esketcher
+  cancel-in-progress: true
+
+env:
+  DEPLOY_HOST: ${{ secrets.GCP_DEPLOY_HOST || secrets.DEPLOY_HOST }}
+  DEPLOY_USER: ${{ secrets.GCP_SSH_USERNAME || secrets.DEPLOY_SSH_USER || 'gigan' }}
+  DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/opt/esketcher' }}
+
+jobs:
+  deploy:
+    name: Deploy backend and database
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check deployment secrets
+        env:
+          DEPLOY_HOST: ${{ env.DEPLOY_HOST }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          JEV_MODE: ${{ secrets.JEV_MODE || 'mock' }}
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$DEPLOY_HOST" || { echo "::error::DEPLOY_HOST is required"; exit 1; }
+          test -n "$SSH_PRIVATE_KEY" || { echo "::error::SSH_PRIVATE_KEY is required"; exit 1; }
+          test -n "$POSTGRES_PASSWORD" || { echo "::error::POSTGRES_PASSWORD is required"; exit 1; }
+          case "$JEV_MODE" in
+            mock) ;;
+            real) test -n "$TYPESAFE_API_KEY" || { echo "::error::TYPESAFE_API_KEY is required when JEV_MODE=real"; exit 1; } ;;
+            *) echo "::error::JEV_MODE must be mock or real"; exit 1 ;;
+          esac
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ env.DEPLOY_HOST }}
+          username: ${{ env.DEPLOY_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: ${{ secrets.DEPLOY_SSH_PORT || '22' }}
+          timeout: 60s
+          command_timeout: 30m
+          script_stop: true
+          script: |
+            set -euo pipefail
+
+            command -v docker >/dev/null || { echo "Docker is required on the VM"; exit 1; }
+            docker compose version >/dev/null || { echo "Docker Compose v2 is required on the VM"; exit 1; }
+
+            DEPLOY_PATH='${{ env.DEPLOY_PATH }}'
+            REPO='${{ github.repository }}'
+            SHA='${{ github.sha }}'
+            CLONE_URL="https://github.com/${REPO}.git"
+
+            if [ -e "$DEPLOY_PATH" ] && [ ! -d "$DEPLOY_PATH/.git" ]; then
+              if [ -z "$(find "$DEPLOY_PATH" -mindepth 1 -maxdepth 1 -print -quit)" ]; then
+                rmdir "$DEPLOY_PATH"
+              else
+                echo "$DEPLOY_PATH exists but is not an empty directory or git checkout"
+                exit 1
+              fi
+            fi
+            if [ ! -d "$DEPLOY_PATH/.git" ]; then
+              git clone "$CLONE_URL" "$DEPLOY_PATH"
+            fi
+
+            git -C "$DEPLOY_PATH" fetch origin "$SHA"
+            git -C "$DEPLOY_PATH" checkout --detach "$SHA"
+
+            cat > "$DEPLOY_PATH/backend/.env" <<'ESKETCHER_BACKEND_ENV'
+            APP_NAME="eSketcher API"
+            ENV=production
+            CORS_ORIGINS=${{ secrets.CORS_ORIGINS || 'https://esketcher.faiz-ai.dev' }}
+            JEV_MODE=${{ secrets.JEV_MODE || 'mock' }}
+            TYPESAFE_API_KEY=${{ secrets.TYPESAFE_API_KEY }}
+            TYPESAFE_BASE_URL=${{ secrets.TYPESAFE_BASE_URL || 'https://api.typesafe.ai' }}
+            JEV_MODEL=${{ secrets.JEV_MODEL || 'jev-latest' }}
+            JEV_TIMEOUT_SECONDS=${{ secrets.JEV_TIMEOUT_SECONDS || '8' }}
+            JEV_RATE_LIMIT_PER_MINUTE=${{ secrets.JEV_RATE_LIMIT_PER_MINUTE || '90' }}
+            ESKETCHER_BACKEND_ENV
+            chmod 600 "$DEPLOY_PATH/backend/.env"
+
+            cat > "$DEPLOY_PATH/.env.production" <<'ESKETCHER_COMPOSE_ENV'
+            POSTGRES_DB=${{ secrets.POSTGRES_DB || 'esketcher' }}
+            POSTGRES_USER=${{ secrets.POSTGRES_USER || 'esketcher' }}
+            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+            BACKEND_PORT=${{ secrets.BACKEND_PORT || '8010' }}
+            ESKETCHER_COMPOSE_ENV
+            chmod 600 "$DEPLOY_PATH/.env.production"
+
+            cd "$DEPLOY_PATH"
+            docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build --remove-orphans
+
+            for attempt in $(seq 1 60); do
+              if curl -fsS "http://127.0.0.1:${{ secrets.BACKEND_PORT || '8010' }}/api/health"; then
+                echo
+                break
+              fi
+              if [ "$attempt" -eq 60 ]; then
+                echo "Backend did not become healthy within 5 minutes"
+                docker compose --env-file .env.production -f docker-compose.prod.yml ps
+                docker compose --env-file .env.production -f docker-compose.prod.yml logs --tail=200 backend db
+                exit 1
+              fi
+              echo "Waiting for backend health (${attempt}/60)..."
+              sleep 5
+            done
+
+            docker image prune -f
+            docker compose --env-file .env.production -f docker-compose.prod.yml ps

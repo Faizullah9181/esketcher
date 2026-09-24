@@ -121,6 +121,33 @@ The UI behaves identically in both modes. The header shows which one is live (`J
 | `DEV_PROXY_TARGET` | Where the Vite dev server forwards `/api` |
 | `VITE_API_URL` | Backend URL for production builds |
 
+### VM deployment
+
+The `Deploy to VM` GitHub Actions workflow deploys the backend and Postgres to the VM on every push to `main` (or manually from the Actions tab). The frontend is deployed separately on Vercel.
+
+Configure these GitHub repository secrets:
+
+| Secret | Required | Purpose |
+|---|---|---|
+| `DEPLOY_HOST` | yes | VM hostname or IP |
+| `SSH_PRIVATE_KEY` | yes | Private key whose public key is in the VM user's `~/.ssh/authorized_keys` |
+| `POSTGRES_PASSWORD` | yes | Database password |
+| `DEPLOY_SSH_USER` | no | VM SSH user; defaults to `gigan` |
+| `DEPLOY_SSH_PORT` | no | SSH port; defaults to `22` |
+| `DEPLOY_PATH` | no | Deployment directory; defaults to `/opt/esketcher` |
+| `CORS_ORIGINS` | no | Defaults to `https://esketcher.faiz-ai.dev` |
+| `JEV_MODE` | no | `mock` by default; set to `real` to use TypeSafe |
+| `TYPESAFE_API_KEY` | only for real mode | TypeSafe API key; add it as a GitHub secret, never commit it |
+| `TYPESAFE_BASE_URL` | no | Defaults to `https://api.typesafe.ai` |
+| `JEV_MODEL` | no | Defaults to `jev-latest` |
+| `JEV_TIMEOUT_SECONDS` | no | Defaults to `8` |
+| `JEV_RATE_LIMIT_PER_MINUTE` | no | Defaults to `90` |
+| `POSTGRES_DB` | no | Defaults to `esketcher` |
+| `POSTGRES_USER` | no | Defaults to `esketcher` |
+| `BACKEND_PORT` | no | VM loopback port; defaults to `8010` |
+
+In Vercel, set `VITE_API_URL` to the public backend URL, for example `https://api.esketcher.faiz-ai.dev`, and point that hostname's reverse proxy to `127.0.0.1:8010` on the VM. The backend CORS origin must include `https://esketcher.faiz-ai.dev`.
+
 ## How a decision works
 
 A finite, described candidate set goes to Jev, and Jev returns a probability distribution. Everything around that distribution is deterministic code.
