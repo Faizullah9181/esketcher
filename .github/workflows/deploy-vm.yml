@@ -123,22 +123,21 @@ jobs:
             fi
 
             API_DOMAIN='${{ env.API_DOMAIN }}'
-            cat > "/etc/nginx/sites-available/$API_DOMAIN" <<NGINX_CONFIG
-            server {
-                listen 80;
-                listen [::]:80;
-                server_name $API_DOMAIN;
-
-                location / {
-                    proxy_pass http://127.0.0.1:${{ secrets.BACKEND_PORT || '8010' }};
-                    proxy_http_version 1.1;
-                    proxy_set_header Host \$host;
-                    proxy_set_header X-Real-IP \$remote_addr;
-                    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-                    proxy_set_header X-Forwarded-Proto \$scheme;
-                }
-            }
-            NGINX_CONFIG
+            printf '%s\n' \
+              'server {' \
+              '    listen 80;' \
+              '    listen [::]:80;' \
+              "    server_name $API_DOMAIN;" \
+              '' \
+              '    location / {' \
+              "        proxy_pass http://127.0.0.1:${{ secrets.BACKEND_PORT || '8010' }};" \
+              '        proxy_http_version 1.1;' \
+              '        proxy_set_header Host $host;' \
+              '        proxy_set_header X-Real-IP $remote_addr;' \
+              '        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;' \
+              '        proxy_set_header X-Forwarded-Proto $scheme;' \
+              '    }' \
+              '}' > "/etc/nginx/sites-available/$API_DOMAIN"
             ln -sfn "/etc/nginx/sites-available/$API_DOMAIN" "/etc/nginx/sites-enabled/$API_DOMAIN"
             nginx -t
             systemctl reload nginx
