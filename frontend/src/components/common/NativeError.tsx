@@ -9,6 +9,8 @@ const COPY: Record<string, { title: string; body: string }> = {
   jev_quota: { title: "Jev is out of credit", body: "The TypeSafe account has no credit left for decisions." },
   jev_malformed: { title: "Jev answered in noise", body: "The response couldn't be read as a material field." },
   rate_limited: { title: "Too many decisions", body: "Give Jev a few seconds to cool down." },
+  daily_limit: { title: "Today's decisions are used up", body: "You've reached today's Jev limit. It resets at midnight UTC; you can still paint manually." },
+  jev_budget: { title: "Jev is resting for today", body: "This server has used today's Jev budget. It resets at midnight UTC; you can still paint manually." },
   bad_candidates: { title: "No field to decide over", body: "There aren't enough candidate materials left. Unpin or reset rejections." },
 };
 
