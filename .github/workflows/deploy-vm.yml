@@ -197,7 +197,6 @@ jobs:
             write_nginx_site
             ln -sfn "/etc/nginx/sites-available/$API_DOMAIN" "/etc/nginx/sites-enabled/$API_DOMAIN"
             nginx -t
-            nohup nginx -s reload >/dev/null 2>&1 </dev/null &
 
             # The site file above is rewritten on every deploy (HTTP only), so the HTTPS block is
             # reinstalled each time; --keep-until-expiring reuses the existing certificate.
@@ -211,7 +210,6 @@ jobs:
 
             write_nginx_site
             nginx -t
-            nohup nginx -s reload >/dev/null 2>&1 </dev/null &
             curl --fail --silent --show-error "https://$API_DOMAIN/api/health"
 
             docker image prune -f
