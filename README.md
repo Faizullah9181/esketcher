@@ -164,6 +164,8 @@ Configure these GitHub repository secrets:
 | `DEPLOY_SSH_USER` | no | VM SSH user; defaults to `gigan` |
 | `DEPLOY_SSH_PORT` | no | SSH port; defaults to `22` |
 | `DEPLOY_PATH` | no | Deployment directory; defaults to `/opt/esketcher` |
+| `API_DOMAIN` | no | Public API hostname; defaults to `api.esketcher.faiz-ai.dev` |
+| `LETSENCRYPT_EMAIL` | no | Renewal notices; if omitted, Certbot uses no-email registration |
 | `CORS_ORIGINS` | no | Defaults to `https://esketcher.faiz-ai.dev` |
 | `JEV_MODE` | no | `mock` by default; set to `real` to use TypeSafe |
 | `TYPESAFE_API_KEY` | only for real mode | TypeSafe API key; add it as a GitHub secret, never commit it |

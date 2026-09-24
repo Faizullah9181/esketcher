@@ -16,6 +16,7 @@ env:
   DEPLOY_HOST: ${{ secrets.GCP_DEPLOY_HOST || secrets.DEPLOY_HOST }}
   DEPLOY_USER: ${{ secrets.GCP_SSH_USERNAME || secrets.DEPLOY_SSH_USER || 'gigan' }}
   DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/opt/esketcher' }}
+  API_DOMAIN: ${{ secrets.API_DOMAIN || 'api.esketcher.faiz-ai.dev' }}
 
 jobs:
   deploy:
@@ -115,6 +116,47 @@ jobs:
               echo "Waiting for backend health (${attempt}/60)..."
               sleep 5
             done
+
+            if ! command -v nginx >/dev/null || ! command -v certbot >/dev/null || ! certbot plugins 2>/dev/null | grep -q nginx; then
+              apt-get update
+              DEBIAN_FRONTEND=noninteractive apt-get install -y nginx certbot python3-certbot-nginx
+            fi
+
+            API_DOMAIN='${{ env.API_DOMAIN }}'
+            cat > "/etc/nginx/sites-available/$API_DOMAIN" <<NGINX_CONFIG
+            server {
+                listen 80;
+                listen [::]:80;
+                server_name $API_DOMAIN;
+
+                location / {
+                    proxy_pass http://127.0.0.1:${{ secrets.BACKEND_PORT || '8010' }};
+                    proxy_http_version 1.1;
+                    proxy_set_header Host \$host;
+                    proxy_set_header X-Real-IP \$remote_addr;
+                    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+                    proxy_set_header X-Forwarded-Proto \$scheme;
+                }
+            }
+            NGINX_CONFIG
+            ln -sfn "/etc/nginx/sites-available/$API_DOMAIN" "/etc/nginx/sites-enabled/$API_DOMAIN"
+            nginx -t
+            systemctl reload nginx
+
+            CERTBOT_EMAIL='${{ secrets.LETSENCRYPT_EMAIL }}'
+            if [ ! -f "/etc/letsencrypt/live/$API_DOMAIN/fullchain.pem" ]; then
+              if [ -n "$CERTBOT_EMAIL" ]; then
+                certbot --nginx --non-interactive --agree-tos --email "$CERTBOT_EMAIL" --redirect -d "$API_DOMAIN"
+              else
+                certbot --nginx --non-interactive --agree-tos --register-unsafely-without-email --redirect -d "$API_DOMAIN"
+              fi
+            else
+              certbot renew --quiet
+            fi
+
+            nginx -t
+            systemctl reload nginx
+            curl --fail --silent --show-error "https://$API_DOMAIN/api/health"
 
             docker image prune -f
             docker compose --env-file .env.production -f docker-compose.prod.yml ps
