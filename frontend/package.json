@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5173",
     "build": "tsc -b && vite build",
+    "build:static": "tsc -b && VITE_OFFLINE=1 vite build",
     "preview": "vite preview",
     "lint": "eslint .",
     "typecheck": "tsc -b",

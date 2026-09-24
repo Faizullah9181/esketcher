@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://esketcher.faiz-ai.dev/sitemap.xml
