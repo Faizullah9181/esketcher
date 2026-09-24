@@ -137,7 +137,12 @@ The UI behaves identically in both modes. The header shows which one is live (`J
 | `TYPESAFE_BASE_URL` | `https://api.typesafe.ai` | API host |
 | `JEV_MODEL` | `jev-latest` | Any name from `GET /v1/models` (`jev-latest`, `jev-preview`) |
 | `JEV_TIMEOUT_SECONDS` | `8` | Per-request timeout; one retry on 5xx, 429 or network errors |
-| `JEV_RATE_LIMIT_PER_MINUTE` | `90` | Per-client limit on `/api/jev/*` |
+| `JEV_RATE_LIMIT_PER_MINUTE` | `60` | Jev decisions per client per minute |
+| `JEV_DAILY_LIMIT_PER_CLIENT` | `600` | Jev decisions per client per UTC day (`0` = off) |
+| `JEV_DAILY_BUDGET` | `5000` | Paid Jev decisions for the whole server per UTC day (`0` = off) |
+| `RATE_LIMIT_PER_MINUTE` | `300` | Every `/api` request, per client |
+| `PROJECT_WRITES_PER_MINUTE` | `60` | Project creates and saves, per client |
+| `MAX_PROJECT_BYTES` | `1000000` | Largest request body; bodies must send `Content-Length` |
 | `DATABASE_URL` | `sqlite+aiosqlite:///./esketcher.db` | Project storage (any async SQLAlchemy URL) |
 | `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated; only needed when the frontend isn't proxied |
 | `ENV` | `development` | `production` disables `/docs` |
@@ -172,10 +177,38 @@ Configure these GitHub repository secrets:
 | `TYPESAFE_BASE_URL` | no | Defaults to `https://api.typesafe.ai` |
 | `JEV_MODEL` | no | Defaults to `jev-latest` |
 | `JEV_TIMEOUT_SECONDS` | no | Defaults to `8` |
-| `JEV_RATE_LIMIT_PER_MINUTE` | no | Defaults to `90` |
+| `JEV_RATE_LIMIT_PER_MINUTE` | no | Defaults to `60` |
+| `JEV_DAILY_LIMIT_PER_CLIENT` | no | Defaults to `600` |
+| `JEV_DAILY_BUDGET` | no | Defaults to `5000`; the cost ceiling for real mode |
+| `RATE_LIMIT_PER_MINUTE` | no | Defaults to `300` |
+| `PROJECT_WRITES_PER_MINUTE` | no | Defaults to `60` |
+| `MAX_PROJECT_BYTES` | no | Defaults to `1000000` |
 | `POSTGRES_DB` | no | Defaults to `esketcher` |
 | `POSTGRES_USER` | no | Defaults to `esketcher` |
 | `BACKEND_PORT` | no | VM loopback port; defaults to `8010` |
+
+### Abuse limits
+
+The public API has no login, so it is protected in layers. Each layer counts only what the one before it let through: a client blocked per minute can't use up the shared budget.
+
+| Layer | Limit | Refusal |
+|---|---|---|
+| nginx on the VM | 5 req/s per IP (burst 40), 20 connections, 1 MB bodies | `429` / `413` |
+| Every `/api` request | 300 per IP per minute | `429 rate_limited` |
+| Request bodies | must send `Content-Length`, at most `MAX_PROJECT_BYTES` | `411` / `413` |
+| Project creates and saves | 60 per IP per minute | `429 rate_limited` |
+| Jev decisions | 60 per IP per minute | `429 rate_limited` |
+| Jev decisions | 600 per IP per UTC day | `429 daily_limit` |
+| Jev decisions | 5,000 for the whole server per UTC day | `429 jev_budget` |
+
+Every refusal includes `Retry-After` and CORS headers, so the studio shows a clear message instead of a network error. Payload sizes are already bounded: at most 16 candidates per decision, and short labels.
+
+Two conditions keep the per-IP limits honest:
+
+- **Real client IPs.** nginx overwrites `X-Forwarded-For` with `$remote_addr`, and the backend trusts that header (`FORWARDED_ALLOW_IPS=*` in `docker-compose.prod.yml`). That trust is safe only because the container port is bound to the VM's loopback. If Cloudflare's proxy sits in front, `$remote_addr` is Cloudflare's address; switch nginx to `real_ip_header CF-Connecting-IP` with Cloudflare's IP ranges.
+- **One process.** The counters are held in memory. That fits the single-container deploy. A restart resets them, so also set a spend limit in the TypeSafe dashboard: it is the only ceiling a restart can't reset.
+
+CORS limits which websites can call the API from a browser; it doesn't stop scripts. The limits above do.
 
 In Vercel, set `VITE_API_URL` to the public backend URL, for example `https://api.esketcher.faiz-ai.dev`, and point that hostname's reverse proxy to `127.0.0.1:8010` on the VM. The backend CORS origin must include `https://esketcher.faiz-ai.dev`.
 
