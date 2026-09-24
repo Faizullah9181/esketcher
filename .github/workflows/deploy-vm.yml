@@ -16,7 +16,6 @@ env:
   DEPLOY_HOST: ${{ secrets.GCP_DEPLOY_HOST || secrets.DEPLOY_HOST }}
   DEPLOY_USER: ${{ secrets.GCP_SSH_USERNAME || secrets.DEPLOY_SSH_USER || 'gigan' }}
   DEPLOY_PATH: ${{ secrets.DEPLOY_PATH || '/opt/esketcher' }}
-  API_DOMAIN: ${{ secrets.API_DOMAIN || 'api.esketcher.faiz-ai.dev' }}
 
 jobs:
   deploy:
@@ -122,99 +121,6 @@ jobs:
               sleep 5
             done
 
-            if ! command -v nginx >/dev/null || ! command -v certbot >/dev/null || ! certbot plugins 2>/dev/null | grep -q nginx; then
-              apt-get update
-              DEBIAN_FRONTEND=noninteractive apt-get install -y nginx certbot python3-certbot-nginx
-            fi
-
-            API_DOMAIN='${{ env.API_DOMAIN }}'
-            SECURITY_CONFIG='/etc/nginx/conf.d/esketcher-security.conf'
-            if [ ! -f "$SECURITY_CONFIG" ]; then
-              printf '%s\n' \
-                'limit_req_zone $binary_remote_addr zone=esketcher_api:10m rate=10r/s;' \
-                'limit_conn_zone $binary_remote_addr zone=esketcher_conn:10m;' \
-                'map $http_origin $esketcher_allowed_origin {' \
-                '    default "";' \
-                '    "https://esketcher.faiz-ai.dev" $http_origin;' \
-                '}' > "$SECURITY_CONFIG"
-            fi
-
-            write_nginx_site() {
-              if [ -f "/etc/letsencrypt/live/$API_DOMAIN/fullchain.pem" ]; then
-                printf '%s\n' \
-                  'server {' \
-                  '    listen 80;' \
-                  '    listen [::]:80;' \
-                  "    server_name $API_DOMAIN;" \
-                  '    location /.well-known/acme-challenge/ { root /var/www/certbot; }' \
-                  '    location / { return 301 https://$host$request_uri; }' \
-                  '}' \
-                  'server {' \
-                  '    listen 443 ssl;' \
-                  '    listen [::]:443 ssl;' \
-                  "    server_name $API_DOMAIN;" \
-                  "    ssl_certificate /etc/letsencrypt/live/$API_DOMAIN/fullchain.pem;" \
-                  "    ssl_certificate_key /etc/letsencrypt/live/$API_DOMAIN/privkey.pem;" \
-                  '    include /etc/letsencrypt/options-ssl-nginx.conf;' \
-                  '    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;' \
-                  '    client_max_body_size 1m;' \
-                  '    location /api/ {' \
-                  '        if ($esketcher_allowed_origin = "") { return 403; }' \
-                  '        limit_req zone=esketcher_api burst=40 nodelay;' \
-                  '        limit_conn esketcher_conn 20;' \
-                  '        limit_req_status 429;' \
-                  '        limit_conn_status 429;' \
-                  '        proxy_pass http://127.0.0.1:${{ secrets.BACKEND_PORT || '8010' }};' \
-                  '        proxy_http_version 1.1;' \
-                  '        proxy_set_header Host $host;' \
-                  '        proxy_set_header X-Real-IP $remote_addr;' \
-                  '        proxy_set_header X-Forwarded-For $remote_addr;' \
-                  '        proxy_set_header X-Forwarded-Proto https;' \
-                  '    }' \
-                  '    location / { return 404; }' \
-                  '}' > "/etc/nginx/sites-available/$API_DOMAIN"
-              else
-                printf '%s\n' \
-                  'server {' \
-                  '    listen 80;' \
-                  '    listen [::]:80;' \
-                  "    server_name $API_DOMAIN;" \
-                  '    location /.well-known/acme-challenge/ { root /var/www/certbot; }' \
-                  '    location /api/ {' \
-                  '        if ($esketcher_allowed_origin = "") { return 403; }' \
-                  '        limit_req zone=esketcher_api burst=40 nodelay;' \
-                  '        limit_req_status 429;' \
-                  "        proxy_pass http://127.0.0.1:${{ secrets.BACKEND_PORT || '8010' }};" \
-                  '        proxy_set_header Host $host;' \
-                  '        proxy_set_header X-Real-IP $remote_addr;' \
-                  '        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;' \
-                  '        proxy_set_header X-Forwarded-Proto $scheme;' \
-                  '    }' \
-                  '}' > "/etc/nginx/sites-available/$API_DOMAIN"
-              fi
-            }
-
-            write_nginx_site
-            ln -sfn "/etc/nginx/sites-available/$API_DOMAIN" "/etc/nginx/sites-enabled/$API_DOMAIN"
-            nginx -t
-
-            # The site file above is rewritten on every deploy (HTTP only), so the HTTPS block is
-            # reinstalled each time; --keep-until-expiring reuses the existing certificate.
-            # Renewal itself is the certbot systemd timer's job.
-            CERTBOT_EMAIL='${{ secrets.LETSENCRYPT_EMAIL }}'
-            if [ ! -f "/etc/letsencrypt/live/$API_DOMAIN/fullchain.pem" ]; then
-              if [ -n "$CERTBOT_EMAIL" ]; then
-                certbot --nginx --non-interactive --agree-tos --email "$CERTBOT_EMAIL" --redirect -d "$API_DOMAIN"
-              else
-                certbot --nginx --non-interactive --agree-tos --register-unsafely-without-email --redirect -d "$API_DOMAIN"
-              fi
-            fi
-
-            write_nginx_site
-            nginx -t
-            curl --fail --silent --show-error \
-              -H 'Origin: https://esketcher.faiz-ai.dev' \
-              "https://$API_DOMAIN/api/health"
-
-            docker image prune -f
+            # Nginx, TLS, firewall, and rate-limit configuration are managed once on the VM.
+            # Do not repeat them on every application deployment. See deployement_kb.md.
             docker compose --env-file .env.production -f docker-compose.prod.yml ps
