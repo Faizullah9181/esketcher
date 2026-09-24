@@ -202,10 +202,12 @@ jobs:
             # reinstalled each time; --keep-until-expiring reuses the existing certificate.
             # Renewal itself is the certbot systemd timer's job.
             CERTBOT_EMAIL='${{ secrets.LETSENCRYPT_EMAIL }}'
-            if [ -n "$CERTBOT_EMAIL" ]; then
-              certbot --nginx --non-interactive --agree-tos --email "$CERTBOT_EMAIL" --keep-until-expiring --redirect -d "$API_DOMAIN"
-            else
-              certbot --nginx --non-interactive --agree-tos --register-unsafely-without-email --keep-until-expiring --redirect -d "$API_DOMAIN"
+            if [ ! -f "/etc/letsencrypt/live/$API_DOMAIN/fullchain.pem" ]; then
+              if [ -n "$CERTBOT_EMAIL" ]; then
+                certbot --nginx --non-interactive --agree-tos --email "$CERTBOT_EMAIL" --redirect -d "$API_DOMAIN"
+              else
+                certbot --nginx --non-interactive --agree-tos --register-unsafely-without-email --redirect -d "$API_DOMAIN"
+              fi
             fi
 
             write_nginx_site
