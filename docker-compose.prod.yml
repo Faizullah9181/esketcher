@@ -23,6 +23,10 @@ services:
     env_file:
       - ./backend/.env
     environment:
+      # Rate limits key on the client IP. Trusting X-Forwarded-For from any peer is
+      # safe only because the port below is bound to the VM's loopback (host nginx
+      # is the sole caller) and nginx overwrites the header with $remote_addr.
+      FORWARDED_ALLOW_IPS: "*"
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-esketcher}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-esketcher}
     depends_on:
       db:

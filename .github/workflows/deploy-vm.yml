@@ -87,7 +87,12 @@ jobs:
             TYPESAFE_BASE_URL=${{ secrets.TYPESAFE_BASE_URL || 'https://api.typesafe.ai' }}
             JEV_MODEL=${{ secrets.JEV_MODEL || 'jev-latest' }}
             JEV_TIMEOUT_SECONDS=${{ secrets.JEV_TIMEOUT_SECONDS || '8' }}
-            JEV_RATE_LIMIT_PER_MINUTE=${{ secrets.JEV_RATE_LIMIT_PER_MINUTE || '90' }}
+            JEV_RATE_LIMIT_PER_MINUTE=${{ secrets.JEV_RATE_LIMIT_PER_MINUTE || '60' }}
+            JEV_DAILY_LIMIT_PER_CLIENT=${{ secrets.JEV_DAILY_LIMIT_PER_CLIENT || '600' }}
+            JEV_DAILY_BUDGET=${{ secrets.JEV_DAILY_BUDGET || '5000' }}
+            RATE_LIMIT_PER_MINUTE=${{ secrets.RATE_LIMIT_PER_MINUTE || '300' }}
+            PROJECT_WRITES_PER_MINUTE=${{ secrets.PROJECT_WRITES_PER_MINUTE || '60' }}
+            MAX_PROJECT_BYTES=${{ secrets.MAX_PROJECT_BYTES || '1000000' }}
             ESKETCHER_BACKEND_ENV
             chmod 600 "$DEPLOY_PATH/backend/.env"
 
@@ -123,34 +128,45 @@ jobs:
             fi
 
             API_DOMAIN='${{ env.API_DOMAIN }}'
+            # Edge limits per client IP; the app adds per-minute, per-day and budget limits on top.
+            # X-Forwarded-For is overwritten, never appended: the backend trusts it for its limits.
             printf '%s\n' \
+              'limit_req_zone $binary_remote_addr zone=esketcher_api:10m rate=5r/s;' \
+              'limit_conn_zone $binary_remote_addr zone=esketcher_conn:10m;' \
+              '' \
               'server {' \
               '    listen 80;' \
               '    listen [::]:80;' \
               "    server_name $API_DOMAIN;" \
+              '' \
+              '    client_max_body_size 1m;' \
+              '    limit_req zone=esketcher_api burst=40 nodelay;' \
+              '    limit_conn esketcher_conn 20;' \
+              '    limit_req_status 429;' \
+              '    limit_conn_status 429;' \
               '' \
               '    location / {' \
               "        proxy_pass http://127.0.0.1:${{ secrets.BACKEND_PORT || '8010' }};" \
               '        proxy_http_version 1.1;' \
               '        proxy_set_header Host $host;' \
               '        proxy_set_header X-Real-IP $remote_addr;' \
-              '        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;' \
+              '        proxy_set_header X-Forwarded-For $remote_addr;' \
               '        proxy_set_header X-Forwarded-Proto $scheme;' \
+              '        proxy_read_timeout 30s;' \
               '    }' \
               '}' > "/etc/nginx/sites-available/$API_DOMAIN"
             ln -sfn "/etc/nginx/sites-available/$API_DOMAIN" "/etc/nginx/sites-enabled/$API_DOMAIN"
             nginx -t
             systemctl reload nginx
 
+            # The site file above is rewritten on every deploy (HTTP only), so the HTTPS block is
+            # reinstalled each time; --keep-until-expiring reuses the existing certificate.
+            # Renewal itself is the certbot systemd timer's job.
             CERTBOT_EMAIL='${{ secrets.LETSENCRYPT_EMAIL }}'
-            if [ ! -f "/etc/letsencrypt/live/$API_DOMAIN/fullchain.pem" ]; then
-              if [ -n "$CERTBOT_EMAIL" ]; then
-                certbot --nginx --non-interactive --agree-tos --email "$CERTBOT_EMAIL" --redirect -d "$API_DOMAIN"
-              else
-                certbot --nginx --non-interactive --agree-tos --register-unsafely-without-email --redirect -d "$API_DOMAIN"
-              fi
+            if [ -n "$CERTBOT_EMAIL" ]; then
+              certbot --nginx --non-interactive --agree-tos --email "$CERTBOT_EMAIL" --keep-until-expiring --redirect -d "$API_DOMAIN"
             else
-              certbot renew --quiet
+              certbot --nginx --non-interactive --agree-tos --register-unsafely-without-email --keep-until-expiring --redirect -d "$API_DOMAIN"
             fi
 
             nginx -t
