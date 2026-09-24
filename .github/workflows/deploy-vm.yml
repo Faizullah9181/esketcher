@@ -42,14 +42,11 @@ jobs:
 
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.0.3
-        env:
-          GH_REPO_TOKEN: ${{ secrets.GH_REPO_TOKEN }}
         with:
           host: ${{ env.DEPLOY_HOST }}
           username: ${{ env.DEPLOY_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.DEPLOY_SSH_PORT || '22' }}
-          envs: GH_REPO_TOKEN
           timeout: 60s
           command_timeout: 30m
           script_stop: true
@@ -62,8 +59,7 @@ jobs:
             DEPLOY_PATH='${{ env.DEPLOY_PATH }}'
             REPO='${{ github.repository }}'
             SHA='${{ github.sha }}'
-            CLONE_URL="https://github.com/${REPO}.git"
-            GIT_AUTH_HEADER="AUTHORIZATION: bearer ${GH_REPO_TOKEN}"
+            CLONE_URL="https://x-access-token:${{ secrets.GH_REPO_TOKEN }}@github.com/${REPO}.git"
 
             if [ -e "$DEPLOY_PATH" ] && [ ! -d "$DEPLOY_PATH/.git" ]; then
               if [ -z "$(find "$DEPLOY_PATH" -mindepth 1 -maxdepth 1 -print -quit)" ]; then
@@ -74,10 +70,11 @@ jobs:
               fi
             fi
             if [ ! -d "$DEPLOY_PATH/.git" ]; then
-              git -c http.extraheader="$GIT_AUTH_HEADER" clone "$CLONE_URL" "$DEPLOY_PATH"
+              git clone "$CLONE_URL" "$DEPLOY_PATH"
             fi
 
-            git -C "$DEPLOY_PATH" -c http.extraheader="$GIT_AUTH_HEADER" fetch origin "$SHA"
+            git -C "$DEPLOY_PATH" fetch "$CLONE_URL" "$SHA"
+            git -C "$DEPLOY_PATH" remote set-url origin "https://github.com/${REPO}.git"
             git -C "$DEPLOY_PATH" checkout --detach "$SHA"
 
             cat > "$DEPLOY_PATH/backend/.env" <<'ESKETCHER_BACKEND_ENV'
