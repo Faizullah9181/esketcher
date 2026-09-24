@@ -20,6 +20,10 @@ Commands: `backend/Makefile`, `frontend/package.json` scripts. Run backend tools
 - Backend: 90% coverage gate, currently 100%. Provider tests use `httpx.MockTransport`; no network.
 - Frontend: vitest gate covers everything except `MaterialRail` (rAF conveyor), `FlightLayer` (motion) and `App`. After touching those, open the app in mock mode and exercise select → Jev tool → paint → Play.
 
+## Loading
+
+The home page must stay light: it renders before the catalog arrives and never imports from `src/components/Studio.tsx`, `src/lib/desk/`, `src/lib/sketchArt/` or `src/lib/paintEngine/` outside `HomeArt.tsx` (those live in the lazy studio chunk; `App.tsx` gates the studio on the catalog, not the home page). Nothing on the hero may animate the `<h1>`'s opacity from 0: that delays LCP. Motion extras gate on `prefersReducedMotion()` (`src/lib/prefers.ts`).
+
 ## Canvas engine
 
 `src/lib/desk/` is ours (no tldraw: its licence blocks production). `Desk` owns document, history, camera and hit-testing; `GestureController` is the pointer/keyboard state machine; React only renders. Mutate through `Desk` methods so undo and autosave see the change; wrap multi-step edits in `desk.transact` or a gesture so they undo as one.

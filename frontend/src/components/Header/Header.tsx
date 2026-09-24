@@ -152,7 +152,7 @@ function JevStatus() {
     return (
       <div className="flex items-center gap-2" title={OFFLINE_MESSAGE}>
         <span className="es-label !text-bone">Jev</span>
-        <span className="es-dot bg-warn" aria-label="Jev offline: server unreachable" />
+        <span className="es-dot bg-warn" role="img" aria-label="Jev offline: server unreachable" />
         <span className="es-mono hidden text-[10px] uppercase tracking-[0.14em] text-ash lg:inline">demo · offline</span>
       </div>
     );
@@ -160,7 +160,7 @@ function JevStatus() {
     <div className="flex items-center gap-4">
       <div className="flex items-center gap-2" title={jev ? `${jev.mode} · ${jev.model}${jev.error ? ` · ${jev.error}` : ""}` : (healthError ?? "")}>
         <span className="es-label !text-bone">Jev</span>
-        <span className={`es-dot ${jevUp ? "es-dot--live" : apiUp ? "bg-warn" : "bg-err"}`} aria-label={jevUp ? "Jev online" : "Jev offline"} />
+        <span className={`es-dot ${jevUp ? "es-dot--live" : apiUp ? "bg-warn" : "bg-err"}`} role="img" aria-label={jevUp ? "Jev online" : "Jev offline"} />
         <span className="es-mono hidden text-[10px] uppercase tracking-[0.14em] text-ash 2xl:inline">
           {jev ? `${jevUp ? "online" : "offline"} · ${jev.mode}` : "—"}
         </span>

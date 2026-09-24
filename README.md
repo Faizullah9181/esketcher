@@ -85,7 +85,7 @@ With Docker, use `BACKEND_PORT=8010 FRONTEND_PORT=5180 docker compose up --build
 
 ### Routes and hosting
 
-`/` is the home page and `/studio` is the studio; routing uses the History API (`src/lib/router.ts`). Vite's dev and preview servers already fall back to `index.html`. On any other static host, rewrite unknown paths to `index.html` so `/studio` works on refresh.
+`/` is the home page and `/studio` is the studio; routing uses the History API (`src/lib/router.ts`), and `src/lib/meta.ts` gives each route its own title, description and canonical URL. Opening the studio from the home page runs a paint wipe (`src/lib/transition.ts`); it is skipped under `prefers-reduced-motion`, as are the hero's flights, tilt and marquee. Vite's dev and preview servers already fall back to `index.html`. On any other static host, rewrite unknown paths to `index.html` so `/studio` works on refresh.
 
 ### Demo mode (server down)
 
@@ -309,6 +309,9 @@ Canvas state (boards, paints, strokes, frames) lives in the `Desk` document and 
 **Why our own canvas.** tldraw v5 requires a paid licence for production: without one it watermarks the canvas and hides it after 5 seconds on non-localhost hosts. eSketcher only needed its camera, selection, transforms, drawing and history, and those fit in about 1,000 lines we own. The engine is pure TypeScript over a vanilla zustand store. Screen space is client coordinates, and `screen = (page + camera) · zoom + viewport`. Every mutation is one undo step, except a gesture (drag, resize, rotate), which folds into a single step. Only shapes that intersect the viewport render. Pen strokes use [perfect-freehand](https://github.com/steveruizok/perfect-freehand) (MIT).
 
 Performance choices:
+- The home page paints before any script runs (a static wordmark in `index.html`) and renders its hero without waiting for the catalog. Its artwork (`src/components/Home/HomeArt.tsx`: the self-painting stage and the material grid) is the only part that needs the sketch generators and paint engine, so it is a lazy chunk that lands after the hero text.
+- The studio is a separate chunk (`src/components/Studio.tsx`, lazy-loaded), so the home page never downloads the desk engine. `main.tsx` starts that download at once on `/studio`, or once idle from the home page.
+- The two fonts the first screen needs are preloaded. When `VITE_API_URL` is set, production builds also preconnect to the API origin and preload the three catalog requests (`vite.config.ts`). Catalog GETs carry no `Content-Type`, so they need no CORS preflight.
 - Only shapes intersecting the viewport render, and the camera moves one CSS transform.
 - Line art is generated once per recipe and memoised.
 - The material stream moves by writing transforms from a `requestAnimationFrame` loop and re-renders only when its window of chips shifts.

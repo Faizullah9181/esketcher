@@ -123,6 +123,18 @@ describe("offline api", () => {
   });
 });
 
+describe("request headers", () => {
+  it("sends a content type only with a body, so GETs need no preflight", async () => {
+    const fetch = mockFetch({ json: async () => [] });
+    await api.materials();
+    await api.decide({} as never);
+    const [, getInit] = fetch.mock.calls[0];
+    const [, postInit] = fetch.mock.calls[1];
+    expect(getInit?.headers).toBeUndefined();
+    expect(postInit?.headers).toEqual({ "Content-Type": "application/json" });
+  });
+});
+
 describe("api mode", () => {
   it("treats an HTML fallback page as no backend", async () => {
     mockFetch({ json: async () => JSON.parse("<!doctype html>") });

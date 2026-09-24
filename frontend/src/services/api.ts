@@ -32,9 +32,11 @@ export function isAbort(error: unknown): boolean {
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   let response: Response;
   try {
+    // a content type only where there is content: on a cross-origin GET it would
+    // force a CORS preflight, doubling the round trips for every catalog request
     response = await fetch(`${BASE_URL}${path}`, {
       ...init,
-      headers: { "Content-Type": "application/json", ...init.headers },
+      headers: init.body ? { "Content-Type": "application/json", ...init.headers } : init.headers,
     });
   } catch (error) {
     if (isAbort(error)) throw error;
