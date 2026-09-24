@@ -212,7 +212,9 @@ jobs:
 
             write_nginx_site
             nginx -t
-            curl --fail --silent --show-error "https://$API_DOMAIN/api/health"
+            curl --fail --silent --show-error \
+              -H 'Origin: https://esketcher.faiz-ai.dev' \
+              "https://$API_DOMAIN/api/health"
 
             docker image prune -f
             docker compose --env-file .env.production -f docker-compose.prod.yml ps
