@@ -52,7 +52,7 @@ One Play run in mock mode: each board got a palette from Jev first, then one dec
 - A home page at `/` (the logo always links there) and the studio at `/studio`; **Fresh** in the nav clears the desk to an empty canvas (undoable)
 - Responsive from 360px phones (portrait and landscape) through tablets to desktop, with touch: pinch zoom, finger-sized handles, a decision pill on small screens
 
-**Demo:** [esketcher.faiz-ai.dev](https://esketcher.faiz-ai.dev) runs the static build without a backend. Everything works except Jev: the sketches, materials, canvas, manual painting, history and saving (in your browser). Play, Sampling's Play, the Jev tool and chaos are switched off there, because there's nothing to answer them. [Run it locally](#quick-start) to see Jev decide.
+**Demo:** [esketcher.faiz-ai.dev](https://esketcher.faiz-ai.dev). When the server is down or not deployed, the site runs in [demo mode](#demo-mode-server-down). Everything works except Jev: sketches, materials, the canvas, manual painting, history, and saving in your browser. Play, Sampling's Play, the Jev tool and chaos are off, because there's nothing to answer them. [Run it locally](#quick-start) to see Jev decide.
 
 Generated from the [codestash](../codestash) template (`python3 cli.py`), then cut down to what this app needs: no Postgres, Terraform, LangChain agent or vendored skills.
 
@@ -87,25 +87,31 @@ With Docker, use `BACKEND_PORT=8010 FRONTEND_PORT=5180 docker compose up --build
 
 `/` is the home page and `/studio` is the studio; routing uses the History API (`src/lib/router.ts`). Vite's dev and preview servers already fall back to `index.html`. On any other static host, rewrite unknown paths to `index.html` so `/studio` works on refresh.
 
-### Static demo (no backend)
+### Demo mode (server down)
 
-`npm run build:static` sets `VITE_OFFLINE=1` and builds a site that never calls the API:
+On page load, the site asks the server for the catalog. If the server can't be reached, it switches to **demo mode** for that visit. "Can't be reached" covers a refused connection, an error status, no answer within 6 s, or a static host answering `/api` with its HTML page. In demo mode:
 
-- **Catalog.** Materials, sketches and palettes come from `frontend/src/data/catalog.json`, loaded as a separate ~11 kB gzipped chunk. The backend generates this file with `make catalog`; `test_catalog.py` fails if it drifts from the API.
+- **Catalog.** Materials, sketches and palettes come from `frontend/src/data/catalog.json`, loaded as a separate ~11 kB gzipped chunk only when needed. The backend generates this file with `make catalog`; `test_catalog.py` fails if it drifts from the API.
 - **Saving.** The desk saves to `localStorage` in place of `/api/projects`.
 - **Jev.** Every Jev call fails with code `offline`. The UI switches Jev off and says so; it never invents a decision. The Jev tool acts as the paint tool.
 
-`frontend/vercel.json` deploys that build: it uses the build command, rewrites routes to `index.html` and caches assets for a year. To deploy on Vercel:
+The mode is chosen once per visit and a reload tries the server again. If the server drops mid-visit, the canvas keeps working and Jev shows "connection interrupted". `npm run build:static` (`VITE_OFFLINE=1`) forces demo mode for a whole build, for hosts that will never have a backend.
+
+`frontend/vercel.json` deploys the normal build:
+
+- It rewrites every route except `/api/*` to `index.html`, so a missing backend returns a quick 404.
+- It caches assets for a year.
+
+To deploy on Vercel:
 
 1. Import the repo.
 2. Set **Root Directory** to `frontend`.
 3. Add the domain `esketcher.faiz-ai.dev`.
 
-When a backend is deployed:
+When the backend is deployed, choose one:
 
-1. Change `buildCommand` to `npm run build`.
-2. Set `VITE_API_URL` to the backend's URL.
-3. Add the site's origin to the backend's `CORS_ORIGINS`.
+- Add `{ "source": "/api/(.*)", "destination": "https://<backend>/api/$1" }` before the existing rewrite. This keeps requests on the same origin and needs no CORS.
+- Or set `VITE_API_URL` in Vercel and add the site's origin to the backend's `CORS_ORIGINS`.
 
 ## Jev modes
 
@@ -142,7 +148,7 @@ The UI behaves identically in both modes. The header shows which one is live (`J
 |---|---|
 | `DEV_PROXY_TARGET` | Where the Vite dev server forwards `/api` |
 | `VITE_API_URL` | Backend URL for production builds |
-| `VITE_OFFLINE` | `1` builds the static demo: bundled catalog, local saves, Jev off (`npm run build:static`) |
+| `VITE_OFFLINE` | `1` forces demo mode for the whole build (`npm run build:static`); otherwise demo mode starts only when the server is down |
 
 ## How a decision works
 
