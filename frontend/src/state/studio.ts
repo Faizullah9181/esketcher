@@ -100,6 +100,8 @@ interface StudioState {
   palettes: PaletteDirection[];
   health: Health | null;
   healthError: string | null;
+  /** the server was unreachable at boot: bundled catalog, local saves, Jev off */
+  offline: boolean;
 
   focus: RegionRef | null;
   hover: RegionRef | null;
@@ -129,6 +131,7 @@ interface StudioActions {
   setDesk(desk: Desk | null): void;
   setCatalog(materials: Material[], sketches: SketchAsset[], palettes?: PaletteDirection[]): void;
   setHealth(health: Health | null, error?: string | null): void;
+  setOffline(offline: boolean): void;
   setFocus(focus: RegionRef | null): void;
   setHover(hover: RegionRef | null): void;
   setBoardState(boardId: string, state: SketchState | null): void;
@@ -165,6 +168,7 @@ export const initialStudio: StudioState = {
   palettes: [],
   health: null,
   healthError: null,
+  offline: false,
   focus: null,
   hover: null,
   boardState: {},
@@ -192,6 +196,7 @@ export const useStudio = create<StudioState & StudioActions>()((set) => ({
   setCatalog: (materials, sketches, palettes) =>
     set((s) => ({ materials, sketches, palettes: palettes ?? s.palettes, materialsById: new Map(materials.map((m) => [m.id, m])) })),
   setHealth: (health, error = null) => set({ health, healthError: error }),
+  setOffline: (offline) => set({ offline }),
   setFocus: (focus) => set({ focus }),
   setHover: (hover) =>
     set((s) => (s.hover?.boardId === hover?.boardId && s.hover?.regionId === hover?.regionId ? s : { hover })),

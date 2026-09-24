@@ -50,7 +50,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     const message = typeof detail.message === "string" ? detail.message : `Request failed (${response.status})`;
     throw new ApiError(response.status, code, message, detail);
   }
-  return (await response.json()) as T;
+  // a static host answering /api with its HTML fallback has no backend behind it
+  return (await response.json().catch(() => {
+    throw new ApiError(0, "network", "The studio backend is unreachable");
+  })) as T;
 }
 
 const post = <T>(path: string, body: unknown, signal?: AbortSignal) =>
@@ -77,14 +80,14 @@ const onlineApi = {
 export type Api = typeof onlineApi;
 
 /**
- * Static builds (`VITE_OFFLINE=1`, e.g. a demo host with no backend) make no
- * network calls: the catalog is the bundled snapshot, the project lives in
- * localStorage, and every Jev call fails with code `offline`. Jev answers are
- * never invented.
+ * Offline mode: no network calls. The catalog is the bundled snapshot, the
+ * project lives in localStorage, and every Jev call fails with code `offline`;
+ * Jev answers are never invented. `useCatalog` switches to it at boot when the
+ * server can't be reached; `VITE_OFFLINE=1` forces it for a whole build.
  */
-export const OFFLINE = import.meta.env.VITE_OFFLINE === "1" || import.meta.env.VITE_OFFLINE === "true";
+export const FORCED_OFFLINE = import.meta.env.VITE_OFFLINE === "1" || import.meta.env.VITE_OFFLINE === "true";
 
-export const OFFLINE_MESSAGE = "Jev isn't deployed on this site. Run eSketcher locally to let Jev decide.";
+export const OFFLINE_MESSAGE = "The eSketcher server isn't reachable, so Jev is off. Everything else works; reload to reconnect.";
 export const OFFLINE_PROJECT_KEY = "esketcher:offline-project";
 
 export function createOfflineApi(storage: Pick<Storage, "getItem" | "setItem"> | null = safeStorage()): Api {
@@ -141,4 +144,22 @@ function safeStorage(): Storage | null {
   }
 }
 
-export const api: Api = OFFLINE ? createOfflineApi() : onlineApi;
+let current: Api = FORCED_OFFLINE ? createOfflineApi() : onlineApi;
+
+/** Every call goes to the current mode; methods stay own properties so tests can spy on them. */
+export const api = Object.fromEntries(
+  (Object.keys(onlineApi) as (keyof Api)[]).map((key) => [key, (...args: never[]) => (current[key] as (...a: never[]) => unknown)(...args)]),
+) as Api;
+
+export const isOffline = (): boolean => current !== onlineApi;
+
+/** Switch this visit to offline mode (once, at boot). Returns the offline adapter. */
+export function goOffline(): Api {
+  if (current === onlineApi) current = createOfflineApi();
+  return current;
+}
+
+/** Test hook: back to the build's starting mode. */
+export function resetApiMode(): void {
+  current = FORCED_OFFLINE ? createOfflineApi() : onlineApi;
+}

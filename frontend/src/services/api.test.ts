@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, OFFLINE_MESSAGE, OFFLINE_PROJECT_KEY, api, createOfflineApi, isAbort } from "./api";
+import { ApiError, OFFLINE_MESSAGE, OFFLINE_PROJECT_KEY, api, createOfflineApi, goOffline, isAbort, isOffline, resetApiMode } from "./api";
 
 function mockFetch(response: Partial<Response> & { json?: () => Promise<unknown> }) {
   const fn = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({}), ...response });
@@ -8,7 +8,10 @@ function mockFetch(response: Partial<Response> & { json?: () => Promise<unknown>
   return fn;
 }
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  resetApiMode();
+});
 
 describe("api", () => {
   it("calls every endpoint with the right method and path", async () => {
@@ -117,5 +120,25 @@ describe("offline api", () => {
     const noStorage = createOfflineApi(null);
     await noStorage.createProject("n", {});
     expect((await noStorage.saveProject("local", { b: 1 }, 1)).revision).toBe(2);
+  });
+});
+
+describe("api mode", () => {
+  it("treats an HTML fallback page as no backend", async () => {
+    mockFetch({ json: async () => JSON.parse("<!doctype html>") });
+    await expect(api.materials()).rejects.toMatchObject({ status: 0, code: "network" });
+  });
+
+  it("switches every call to the offline adapter, once", async () => {
+    const fetch = mockFetch({ json: async () => [] });
+    expect(isOffline()).toBe(false);
+    const offline = goOffline();
+    expect(goOffline()).toBe(offline);
+    expect(isOffline()).toBe(true);
+    expect(await api.materials()).toHaveLength(121);
+    await expect(api.decide({} as never)).rejects.toMatchObject({ code: "offline" });
+    expect(fetch).not.toHaveBeenCalled();
+    resetApiMode();
+    expect(isOffline()).toBe(false);
   });
 });
