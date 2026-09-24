@@ -497,6 +497,31 @@ body,
   transform: translateY(-4px) scale(1.03);
 }
 
+/* ── Gallery ───────────────────────────────────────────────────────── */
+
+.es-gallery-frame {
+  box-shadow:
+    0 30px 80px -30px rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(198, 255, 61, 0.05);
+}
+
+.es-gallery-card > span:first-child {
+  transition:
+    border-color 0.3s,
+    box-shadow 0.4s var(--ease-out-expo);
+}
+
+.es-gallery-card:hover > span:first-child,
+.es-gallery-card:focus-visible > span:first-child {
+  border-color: rgba(198, 255, 61, 0.45);
+  box-shadow: 0 18px 50px -20px rgba(198, 255, 61, 0.25);
+}
+
+.es-lightbox {
+  background: rgba(6, 6, 10, 0.94);
+  backdrop-filter: blur(6px);
+}
+
 /* ── Sketch boards ─────────────────────────────────────────────────── */
 
 .es-board {

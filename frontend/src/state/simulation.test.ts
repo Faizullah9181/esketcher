@@ -7,7 +7,7 @@ import { boardOf, setupDesk } from "@/test/desk";
 import { decision } from "@/test/fixtures";
 
 import { landFlight, resetControllerState } from "./jevController";
-import { isSimulating, pauseSimulation, planSimulation, startSimulation, stopSimulation } from "./simulation";
+import { isSimulating, pauseSimulation, planSimulation, retryPolicy, startSimulation, stopSimulation } from "./simulation";
 import { useStudio } from "./studio";
 
 let desk: Desk;
@@ -91,12 +91,36 @@ describe("startSimulation", () => {
     pauseSimulation();
   });
 
-  it("stops with a native error when Jev fails", async () => {
-    vi.spyOn(api, "decide").mockRejectedValue(new ApiError(503, "jev_unavailable", "Jev is down"));
+  it("retries a transient Jev error, then stops with a native error when Jev stays down", async () => {
+    const decide = vi.spyOn(api, "decide").mockRejectedValue(new ApiError(503, "jev_unavailable", "Jev is down"));
+    const run = startSimulation();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(useStudio.getState().sim.current).toMatch(/retrying/);
+    await vi.advanceTimersByTimeAsync(15_000);
+    await run;
+    expect(useStudio.getState().sim).toMatchObject({ status: "error", error: "Jev is down" });
+    expect(decide).toHaveBeenCalledTimes(1 + retryPolicy.backoffMs.length);
+  });
+
+  it("recovers when Jev comes back during the retries", async () => {
+    vi.spyOn(api, "decide").mockRejectedValueOnce(new ApiError(0, "network", "offline")).mockResolvedValue(decision());
+    void startSimulation();
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(useStudio.getState().sim).toMatchObject({ status: "running", done: 0, current: "Jev hiccup · retrying in 2s" });
+    await vi.advanceTimersByTimeAsync(6_000);
+    expect(useStudio.getState().sim.status).toBe("running");
+    expect(useStudio.getState().sim.done).toBeGreaterThan(0);
+    expect(useStudio.getState().sim.error).toBeNull();
+    stopSimulation();
+  });
+
+  it("gives up at once on an error that a retry cannot fix", async () => {
+    const decide = vi.spyOn(api, "decide").mockRejectedValue(new ApiError(400, "bad_candidates", "No field"));
     const run = startSimulation();
     await vi.advanceTimersByTimeAsync(3000);
     await run;
-    expect(useStudio.getState().sim).toMatchObject({ status: "error", error: "Jev is down" });
+    expect(useStudio.getState().sim).toMatchObject({ status: "error", error: "No field" });
+    expect(decide).toHaveBeenCalledTimes(1);
   });
 
   it("skips boards deleted mid-run and does nothing on an empty desk", async () => {

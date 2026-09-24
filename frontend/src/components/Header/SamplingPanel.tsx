@@ -7,7 +7,7 @@ import { SAMPLE_MAX, SAMPLE_MIN, buildSampling, playSampling, rewindSampling, st
 import { useStudio } from "@/state/studio";
 import type { SketchCategory } from "@/types";
 
-const PRESETS = [4, 7, 12, 24];
+const PRESETS = [4, 7, 12, 24, 50];
 
 /** Set how many samples to run, build the carousel, play it. */
 export function SamplingPanel() {

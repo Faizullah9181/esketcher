@@ -7,6 +7,13 @@ SKETCH → SELECT → JEV DECIDES → PAINT MATERIAL ARRIVES → CANVAS TRANSFOR
 ```
 
 <p align="center">
+  <a href="frontend/public/gallery/film/esketcher-demo.mp4"><img src="docs/demo-preview.gif" alt="A sketch lifts onto the stage and Jev paints it, region by region" width="760"></a>
+</p>
+<p align="center">
+  <a href="frontend/public/gallery/film/esketcher-demo.mp4"><b>▶ Watch the full demo</b></a> (fifty sketches, 2:50) · <a href="https://esketcher.faiz-ai.dev/gallery">Gallery</a>
+</p>
+
+<p align="center">
   <img src="docs/architecture.svg" alt="Architecture: the browser (desk canvas, paint engine, Jev controller, Play and Sampling) talks to the FastAPI backend (Jev routes, JevClient, catalog, SQLite), which alone calls TypeSafe Jev or the offline mock" width="760">
 </p>
 
@@ -29,16 +36,17 @@ TypeSafe doesn't publish the architecture, reward, loss or weights, so the diagr
 
 ### Painted by Jev
 
-One Play run in mock mode: each board got a palette from Jev first, then one decision per region.
+Stills from one Sampling run: fifty sketches, a palette for each, then a paint for every region. More, with the full film, on the site's [gallery](https://esketcher.faiz-ai.dev/gallery).
 
 <p align="center">
-  <img src="docs/screenshots/eyes.jpg" alt="The Watcher: an eye with a spectral iris and jewel-tone faceted lids" width="180">
-  <img src="docs/screenshots/planets.jpg" alt="Gas Storm: a violet faceted planet on a purple nebula" width="180">
-  <img src="docs/screenshots/landscapes.jpg" alt="Lake Mirror: sandstone mountains reflected in a sunset lake" width="180">
-  <img src="docs/screenshots/creatures.jpg" alt="Deep Drifter: a jellyfish in lilac crystal and cosmic dust" width="180">
+  <img src="frontend/public/gallery/paintings/orbit-diagram.jpg" alt="Orbit Diagram: a pixel-sun orbit on a magenta and violet nebula" width="150">
+  <img src="frontend/public/gallery/paintings/koi.jpg" alt="Koi: a teal fish in a glassy pond" width="150">
+  <img src="frontend/public/gallery/paintings/swallowtail.jpg" alt="Swallowtail: a butterfly in gold glitter" width="150">
+  <img src="frontend/public/gallery/paintings/twin-moons.jpg" alt="Twin Moons: violet moons over a rainbow planet" width="150">
+  <img src="frontend/public/gallery/paintings/whale-song.jpg" alt="Whale Song: a teal whale on glass water" width="150">
 </p>
 <p align="center">
-  <img src="docs/screenshots/desk.jpg" alt="The studio after Play: eight painted boards, the Jev panel with recent decisions and the material stream" width="760">
+  <img src="frontend/public/gallery/studio/jev-decisive.jpg" alt="The studio mid-run: Jev picks Honey Resin at 75% for the Cyclops's great eye, with the probability field in the panel" width="760">
 </p>
 
 - 105 procedural line-art sketches across 21 categories, each with named, paintable regions (eye, iris, petal, gear…)
@@ -85,7 +93,7 @@ With Docker, use `BACKEND_PORT=8010 FRONTEND_PORT=5180 docker compose up --build
 
 ### Routes and hosting
 
-`/` is the home page and `/studio` is the studio; routing uses the History API (`src/lib/router.ts`), and `src/lib/meta.ts` gives each route its own title, description and canonical URL. Opening the studio from the home page runs a paint wipe (`src/lib/transition.ts`); it is skipped under `prefers-reduced-motion`, as are the hero's flights, tilt and marquee. Vite's dev and preview servers already fall back to `index.html`. On any other static host, rewrite unknown paths to `index.html` so `/studio` works on refresh.
+`/` is the home page, `/studio` the studio and `/gallery` the gallery; routing uses the History API (`src/lib/router.ts`), and `src/lib/meta.ts` gives each route its own title, description and canonical URL. Opening the studio from the home page runs a paint wipe (`src/lib/transition.ts`); it is skipped under `prefers-reduced-motion`, as are the hero's flights, tilt and marquee. Vite's dev and preview servers already fall back to `index.html`. On any other static host, rewrite unknown paths to `index.html` so `/studio` works on refresh.
 
 ### Demo mode (server down)
 
@@ -273,7 +281,7 @@ The backend's `JevClient` exposes `decide_paint`, `rank_paint_candidates`, `deci
 
 ## Architecture
 
-Both diagrams are at the top of this README. Their editable sources are [`docs/architecture.excalidraw`](docs/architecture.excalidraw) and [`docs/color-decision.excalidraw`](docs/color-decision.excalidraw); open them at excalidraw.com.
+The diagrams are at the top of this README. Each SVG in `docs/` sits beside its editable `.excalidraw` source; open it at excalidraw.com.
 
 ```
 backend/app/

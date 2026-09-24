@@ -5,10 +5,11 @@ import { useStudio } from "@/state/studio";
 
 const POLL_MS = 30_000;
 
-/** Keep the header's JEV / API lights honest. */
-export function useJevHealth(): void {
+/** Keep the header's JEV / API lights honest. `enabled: false` stops asking (pages with no lights). */
+export function useJevHealth(enabled = true): void {
   const offline = useStudio((s) => s.offline);
   useEffect(() => {
+    if (!enabled) return;
     if (offline) return useStudio.getState().setHealth(null, "offline");
     let cancelled = false;
     const check = () =>
@@ -22,5 +23,5 @@ export function useJevHealth(): void {
       cancelled = true;
       clearInterval(timer);
     };
-  }, [offline]);
+  }, [offline, enabled]);
 }

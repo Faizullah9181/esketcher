@@ -2,6 +2,7 @@ import { ChevronLeft, ChevronRight, Menu, PanelRight, Redo2, Undo2 } from "lucid
 import { useEffect, useRef, useState } from "react";
 
 import { Logo } from "@/components/common/Logo";
+import { RouteLink } from "@/components/common/RouteLink";
 import { useDeskValue } from "@/hooks/useDesk";
 import { focusBoard, isBoard, listBoards } from "@/lib/canvas/boards";
 import type { Desk } from "@/lib/desk/desk";
@@ -231,6 +232,9 @@ function ViewsMenu({ desk, go, drawer }: { desk: Desk | null; go: (id: Drawer | 
               Sampling
               {drawer === "sampling" && <span className="es-dot bg-jev" />}
             </button>
+            <RouteLink to="gallery" role="menuitem" className="flex w-full items-center px-4 py-2.5 text-left text-[13px] text-ash hover:text-bone">
+              Gallery
+            </RouteLink>
           </div>
         </div>
       )}
@@ -275,6 +279,9 @@ export function Header() {
         })}
         <FreshButton desk={desk} />
         <SamplingTab active={drawer === "sampling"} onClick={() => go("sampling")} />
+        <RouteLink to="gallery" className="px-3 py-2 text-[13px] tracking-tight text-ash transition-colors hover:text-bone">
+          Gallery
+        </RouteLink>
       </nav>
       <div className="ml-auto flex min-w-0 items-center gap-3 max-sm:gap-1">
         <SimulationControls />

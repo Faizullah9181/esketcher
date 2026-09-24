@@ -1,13 +1,14 @@
 import { useSyncExternalStore } from "react";
 
-/** Two routes don't need a router library: the History API and one event. */
-export type Route = "home" | "studio";
+/** Three routes don't need a router library: the History API and one event. */
+export type Route = "home" | "studio" | "gallery";
 
-const PATHS: Record<Route, string> = { home: "/", studio: "/studio" };
+const PATHS: Record<Route, string> = { home: "/", studio: "/studio", gallery: "/gallery" };
 const EVENT = "esketcher:navigate";
 
 export function routeOf(pathname: string): Route {
-  return pathname.replace(/\/+$/, "") === PATHS.studio ? "studio" : "home";
+  const path = pathname.replace(/\/+$/, "") || "/";
+  return (Object.keys(PATHS) as Route[]).find((route) => PATHS[route] === path) ?? "home";
 }
 
 export function pathOf(route: Route): string {

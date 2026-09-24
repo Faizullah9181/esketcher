@@ -10,20 +10,7 @@ import { decision, sketch } from "@/test/fixtures";
 import type { SketchCategory } from "@/types";
 
 import { landFlight, resetControllerState } from "./jevController";
-import {
-  ITEM,
-  ROW_Y,
-  SLOT,
-  STAGE,
-  buildSampling,
-  pauseSampling,
-  pickSamples,
-  playSampling,
-  rewindSampling,
-  samplingBounds,
-  slotRect,
-  stopSampling,
-} from "./sampling";
+import { ITEM, ROW_Y, SAMPLE_MAX, SLOT, STAGE, buildSampling, pauseSampling, pickSamples, playSampling, rewindSampling, samplingBounds, slotRect, stopSampling } from "./sampling";
 import { useStudio } from "./studio";
 
 const CATEGORIES: SketchCategory[] = ["eyes", "flowers", "mechanical", "faces"];
@@ -84,7 +71,7 @@ describe("buildSampling", () => {
 
   it("clamps the sample count", () => {
     expect(buildSampling(1)).toHaveLength(3);
-    expect(buildSampling(99)).toHaveLength(30);
+    expect(buildSampling(99)).toHaveLength(SAMPLE_MAX);
     useStudio.setState({ desk: null });
     expect(buildSampling(4)).toEqual([]);
   });
@@ -142,7 +129,7 @@ describe("playSampling", () => {
   });
 
   it("stops with a native error when Jev fails, and editing comes back", async () => {
-    vi.spyOn(api, "decide").mockRejectedValue(new ApiError(503, "jev_unavailable", "Jev is down"));
+    vi.spyOn(api, "decide").mockRejectedValue(new ApiError(400, "bad_candidates", "Jev is down"));
     buildSampling(3);
     await playSampling();
     expect(useStudio.getState().sim).toMatchObject({ status: "error", error: "Jev is down" });

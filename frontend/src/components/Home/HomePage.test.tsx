@@ -38,6 +38,7 @@ it("introduces the studio with real catalogue numbers", () => {
   expect(screen.getByText("13")).toBeInTheDocument();
   expect(screen.getAllByText("jev online · mock").length).toBeGreaterThan(0);
   expect(screen.getByText("How it works", { selector: "a.es-btn" })).toHaveAttribute("href", "#how");
+  expect(screen.getByRole("link", { name: "Gallery" })).toHaveAttribute("href", "/gallery");
   // heading order: the section labels are the h2s the h3 steps sit under
   expect(screen.getByRole("heading", { level: 2, name: "how it works" })).toBeInTheDocument();
 });

@@ -66,6 +66,17 @@ describe("Header", () => {
     expect(useStudio.getState().panelOpen).toBe(true);
   });
 
+  it("links to the gallery from the tabs and the menu", () => {
+    render(<Header />);
+    const tab = screen.getAllByRole("link", { name: "Gallery" })[0];
+    expect(tab).toHaveAttribute("href", "/gallery");
+    fireEvent.click(tab);
+    expect(window.location.pathname).toBe("/gallery");
+    window.history.replaceState({}, "", "/studio");
+    fireEvent.click(screen.getByLabelText("Open menu"));
+    expect(screen.getByRole("menuitem", { name: "Gallery" })).toHaveAttribute("href", "/gallery");
+  });
+
   it("starts fresh after confirming, and can be undone", () => {
     vi.mocked(simulation.stopSimulation).mockClear();
     render(<Header />);

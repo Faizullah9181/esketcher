@@ -4,6 +4,7 @@ import { Suspense, lazy, useEffect, useMemo, useRef, useState, type PointerEvent
 
 import { JevGlyph } from "@/components/common/JevGlyph";
 import { Logo } from "@/components/common/Logo";
+import { RouteLink } from "@/components/common/RouteLink";
 import { prefersReducedMotion } from "@/lib/prefers";
 import { openStudio } from "@/lib/transition";
 import { OFFLINE_MESSAGE } from "@/services/api";
@@ -130,6 +131,9 @@ export function HomePage() {
         <a href="#materials" className="es-focus hidden text-[13px] text-ash hover:text-bone sm:inline">
           Materials
         </a>
+        <RouteLink to="gallery" className="text-[13px] text-ash hover:text-bone">
+          Gallery
+        </RouteLink>
         <div className="ml-auto flex items-center gap-4">
           <span className="hidden md:inline">
             <JevLight />

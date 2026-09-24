@@ -24,7 +24,7 @@ import { planBoard, runStep } from "./simulation";
 import { idleSimulation, useStudio, type SamplingRun } from "./studio";
 
 export const SAMPLE_MIN = 3;
-export const SAMPLE_MAX = 30;
+export const SAMPLE_MAX = 50;
 
 // page-space layout
 export const ITEM = { w: 176, h: 220 };

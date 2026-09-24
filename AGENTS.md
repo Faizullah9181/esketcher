@@ -24,6 +24,10 @@ Commands: `backend/Makefile`, `frontend/package.json` scripts. Run backend tools
 
 The home page must stay light: it renders before the catalog arrives and never imports from `src/components/Studio.tsx`, `src/lib/desk/`, `src/lib/sketchArt/` or `src/lib/paintEngine/` outside `HomeArt.tsx` (those live in the lazy studio chunk; `App.tsx` gates the studio on the catalog, not the home page). Nothing on the hero may animate the `<h1>`'s opacity from 0: that delays LCP. Motion extras gate on `prefersReducedMotion()` (`src/lib/prefers.ts`).
 
+## Gallery
+
+`/gallery` is frontend-only. Its images and films live in `frontend/public/gallery/` and nowhere else (the README points there too); `components/Gallery/items.ts` lists them. The architecture diagrams are repo docs in `docs/` and stay off the site. Page copy is product language: no run statistics, playback speeds or model versions. `App.tsx` passes `enabled: false` to `useCatalog` and `useJevHealth` on that route, so the page makes no API request. Keep it that way: anything it shows ships as a file.
+
 ## Canvas engine
 
 `src/lib/desk/` is ours (no tldraw: its licence blocks production). `Desk` owns document, history, camera and hit-testing; `GestureController` is the pointer/keyboard state machine; React only renders. Mutate through `Desk` methods so undo and autosave see the change; wrap multi-step edits in `desk.transact` or a gesture so they undo as one.

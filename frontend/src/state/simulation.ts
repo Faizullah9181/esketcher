@@ -57,18 +57,35 @@ export function planSimulation(): SimStep[] {
   return fresh.length ? fresh : boards.flatMap((b) => planBoard(b, true));
 }
 
-/** Run one step through the real decision loop; false when Jev failed (sim goes to "error"). */
+/** Errors worth another try after a pause: the connection, not the question. */
+const TRANSIENT = new Set(["network", "jev_unavailable", "jev_timeout", "rate_limited"]);
+/** Waits between retries of one step, so a long unattended run survives a hiccup. */
+export const retryPolicy = { backoffMs: [1500, 4000] };
+
+/**
+ * Run one step through the real decision loop. A transient Jev failure is retried
+ * after a pause; false when Jev stayed down (sim goes to "error") or the run was
+ * paused or stopped while waiting.
+ */
 export async function runStep(step: SimStep): Promise<boolean> {
-  useStudio.getState().setFocus({ boardId: step.boardId, regionId: step.regionId });
-  const outcome = await requestDecision({ boardId: step.boardId, regionId: step.regionId, autoApply: true, force: true, applyTo: step.applyTo });
-  if (!outcome) {
+  for (let attempt = 0; ; attempt++) {
+    useStudio.getState().setFocus({ boardId: step.boardId, regionId: step.regionId });
+    const outcome = await requestDecision({ boardId: step.boardId, regionId: step.regionId, autoApply: true, force: true, applyTo: step.applyTo });
+    if (outcome) {
+      if (outcome.flightId) await waitForLanding(outcome.flightId);
+      return true;
+    }
     const active = useStudio.getState().active;
-    if (active?.status === "error") {
+    if (active?.status !== "error") return true; // cancelled, not failed
+    const wait = retryPolicy.backoffMs[attempt];
+    if (wait === undefined || !TRANSIENT.has(active.error?.code ?? "")) {
       useStudio.getState().setSim({ status: "error", error: active.error?.message ?? "Jev connection interrupted" });
       return false;
     }
-  } else if (outcome.flightId) await waitForLanding(outcome.flightId);
-  return true;
+    useStudio.getState().setSim({ current: `Jev hiccup · retrying in ${Math.round(wait / 1000)}s` });
+    await sleep(wait);
+    if (!isSimulating()) return false;
+  }
 }
 
 export async function startSimulation(): Promise<void> {

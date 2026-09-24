@@ -62,7 +62,7 @@ describe("useCatalog", () => {
   it("treats a server that never answers as down", async () => {
     vi.spyOn(api, "materials").mockImplementation((signal) => new Promise((_, reject) => signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")))));
     vi.spyOn(api, "sketches").mockResolvedValue([]);
-    const { result } = renderHook(() => useCatalog(20));
+    const { result } = renderHook(() => useCatalog(true, 20));
     await waitFor(() => expect(result.current[0].status).toBe("ready"));
     expect(useStudio.getState().offline).toBe(true);
   });
@@ -87,6 +87,20 @@ describe("useCatalog", () => {
     expect(materials).toHaveBeenCalledTimes(2);
   });
 
+  it("asks nothing while disabled, and keeps a loaded catalog across pages", async () => {
+    const materials = vi.spyOn(api, "materials").mockResolvedValue(MATERIALS);
+    vi.spyOn(api, "sketches").mockResolvedValue([]);
+    const { result, rerender } = renderHook(({ enabled }) => useCatalog(enabled), { initialProps: { enabled: false } });
+    expect(materials).not.toHaveBeenCalled();
+    expect(result.current[0].status).toBe("loading");
+    rerender({ enabled: true });
+    await waitFor(() => expect(result.current[0].status).toBe("ready"));
+    rerender({ enabled: false });
+    rerender({ enabled: true });
+    expect(result.current[0].status).toBe("ready");
+    expect(materials).toHaveBeenCalledTimes(1);
+  });
+
   it("uses a generic message for unknown failures", async () => {
     goOffline();
     vi.spyOn(api, "materials").mockRejectedValue(new Error("x"));
@@ -108,6 +122,12 @@ describe("useJevHealth", () => {
     vi.spyOn(api, "health").mockRejectedValueOnce(new Error("?"));
     renderHook(() => useJevHealth());
     await waitFor(() => expect(useStudio.getState().health).toBeNull());
+  });
+
+  it("asks nothing while disabled", () => {
+    const health = vi.spyOn(api, "health");
+    renderHook(() => useJevHealth(false));
+    expect(health).not.toHaveBeenCalled();
   });
 
   it("stops asking once the visit is offline", async () => {

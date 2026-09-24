@@ -15,6 +15,8 @@ import { useRoute } from "@/lib/router";
 /** The studio is the heavy half of the app; the home page never pays for it. */
 export const loadStudio = () => import("@/components/Studio");
 const Studio = lazy(loadStudio);
+/** The gallery is static: images and video from `public/gallery`, no API. */
+const Gallery = lazy(() => import("@/components/Gallery/GalleryPage"));
 
 function Boot({ error, onRetry }: { error?: string; onRetry: () => void }) {
   return (
@@ -45,9 +47,11 @@ function Boot({ error, onRetry }: { error?: string; onRetry: () => void }) {
 }
 
 export default function App() {
-  const [catalog, retry] = useCatalog();
   const route = useRoute();
-  useJevHealth();
+  // the gallery is frontend-only: it asks the server for nothing
+  const needsServer = route !== "gallery";
+  const [catalog, retry] = useCatalog(needsServer);
+  useJevHealth(needsServer);
   useEffect(() => applyRouteMeta(route), [route]);
   // the home page renders at once and fills in sketches when the catalog lands;
   // the studio needs the catalog before it can seed or load a desk
@@ -56,6 +60,10 @@ export default function App() {
       <PaintDefs />
       {route === "home" ? (
         <HomePage />
+      ) : route === "gallery" ? (
+        <Suspense fallback={<div className="h-full bg-void" />}>
+          <Gallery />
+        </Suspense>
       ) : catalog.status !== "ready" ? (
         <Boot error={catalog.status === "error" ? catalog.message : undefined} onRetry={retry} />
       ) : (

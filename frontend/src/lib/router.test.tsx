@@ -14,6 +14,10 @@ describe("router", () => {
     expect(routeOf("/studio/")).toBe("studio");
     expect(routeOf("/anything")).toBe("home");
     expect(pathOf("studio")).toBe("/studio");
+    expect(routeOf("/gallery")).toBe("gallery");
+    expect(routeOf("/gallery/")).toBe("gallery");
+    expect(routeOf("")).toBe("home");
+    expect(pathOf("gallery")).toBe("/gallery");
   });
 
   it("navigates with history and follows back/forward", () => {

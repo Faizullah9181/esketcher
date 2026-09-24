@@ -17,6 +17,9 @@ describe("applyRouteMeta", () => {
     applyRouteMeta("home");
     expect(document.querySelector<HTMLLinkElement>('link[rel="canonical"]')!.href).toBe("https://esketcher.faiz-ai.dev/");
     expect(document.title).toMatch(/generative painting/);
+    applyRouteMeta("gallery");
+    expect(document.title).toBe("Gallery · eSketcher");
+    expect(document.querySelector<HTMLLinkElement>('link[rel="canonical"]')!.href).toBe("https://esketcher.faiz-ai.dev/gallery");
   });
 
   it("creates the tags when the page has none and falls back to the current origin", () => {

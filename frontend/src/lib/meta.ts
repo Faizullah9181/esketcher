@@ -3,11 +3,13 @@ import { pathOf, type Route } from "./router";
 const TITLES: Record<Route, string> = {
   home: "eSketcher: generative painting canvas",
   studio: "Studio · eSketcher",
+  gallery: "Gallery · eSketcher",
 };
 
 const DESCRIPTIONS: Record<Route, string> = {
   home: "eSketcher: a generative painting canvas. 105 procedural sketches, 121 animated paint materials, and Jev, a calibrated decision model, choosing the colours.",
   studio: "The eSketcher studio: an infinite desk of procedural sketches where Jev picks the paint for every region.",
+  gallery: "Sketches painted by Jev, the studio mid-decision, and a film of a full fifty-sketch run.",
 };
 
 function meta(selector: string, create: () => HTMLElement): HTMLElement {
