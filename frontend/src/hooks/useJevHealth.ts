@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-import { ApiError, api } from "@/services/api";
+import { ApiError, OFFLINE, api } from "@/services/api";
 import { useStudio } from "@/state/studio";
 
 const POLL_MS = 30_000;
@@ -8,6 +8,7 @@ const POLL_MS = 30_000;
 /** Keep the header's JEV / API lights honest. */
 export function useJevHealth(): void {
   useEffect(() => {
+    if (OFFLINE) return useStudio.getState().setHealth(null, "offline");
     let cancelled = false;
     const check = () =>
       api

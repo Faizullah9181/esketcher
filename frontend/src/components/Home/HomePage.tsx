@@ -11,6 +11,7 @@ import { MaterialSwatch } from "@/lib/paintEngine/MaterialSwatch";
 import { BEHAVIOR_MOTION } from "@/lib/paintEngine/recipes";
 import { createRng } from "@/lib/rng";
 import { navigate } from "@/lib/router";
+import { OFFLINE, OFFLINE_MESSAGE } from "@/services/api";
 import { useStudio } from "@/state/studio";
 import type { SketchAsset } from "@/types";
 
@@ -109,6 +110,13 @@ function Showcase() {
 function JevLight() {
   const health = useStudio((s) => s.health);
   const online = Boolean(health?.jev.online);
+  if (OFFLINE)
+    return (
+      <span className="flex items-center gap-2" title={OFFLINE_MESSAGE}>
+        <span className="es-dot bg-warn" />
+        <span className="es-mono text-[10px] uppercase tracking-[0.14em] text-ash">demo · jev offline</span>
+      </span>
+    );
   return (
     <span className="flex items-center gap-2">
       <span className={`es-dot ${online ? "es-dot--live" : health ? "bg-warn" : "bg-err"}`} />

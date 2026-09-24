@@ -5,6 +5,7 @@ import { focusBoard, isBoard } from "@/lib/canvas/boards";
 import type { Desk } from "@/lib/desk/desk";
 import { GestureController, type Handle, type PointerInfo } from "@/lib/desk/gestures";
 import { shapeBounds } from "@/lib/desk/math";
+import { OFFLINE } from "@/services/api";
 import { requestDecision } from "@/state/jevController";
 import { actOnRegion, hoverRegion } from "@/state/regionTools";
 import { useStudio } from "@/state/studio";
@@ -45,7 +46,7 @@ function useSelectionSync(desk: Desk) {
   }, [selectedBoard]);
 
   useEffect(() => {
-    if (!focus || tool === "jev" || useStudio.getState().sim.status === "running") return;
+    if (OFFLINE || !focus || tool === "jev" || useStudio.getState().sim.status === "running") return;
     const timer = setTimeout(() => {
       const { active, sim } = useStudio.getState();
       if (sim.status === "running") return;

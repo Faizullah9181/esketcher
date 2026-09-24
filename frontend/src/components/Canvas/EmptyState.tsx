@@ -2,6 +2,7 @@ import { motion } from "motion/react";
 
 import { createBoard } from "@/lib/canvas/boards";
 import { createRng } from "@/lib/rng";
+import { OFFLINE } from "@/services/api";
 import { requestDecision } from "@/state/jevController";
 import { useStudio } from "@/state/studio";
 
@@ -17,7 +18,7 @@ export function EmptyState() {
     const id = createBoard(desk, sketch);
     desk.select([id]);
     desk.zoomToSelection();
-    setTimeout(() => void requestDecision({ boardId: id, regionId: null, autoApply: true }), 700);
+    if (!OFFLINE) setTimeout(() => void requestDecision({ boardId: id, regionId: null, autoApply: true }), 700);
   };
 
   const field = materials.slice(0, 18);
@@ -46,14 +47,14 @@ export function EmptyState() {
         <p className="mt-6 text-[15px] leading-relaxed text-bone/70">
           Drag a material in. Draw something.
           <br />
-          Or let Jev choose.
+          {OFFLINE ? "Or pick a random sketch." : "Or let Jev choose."}
         </p>
         <div className="mt-8 flex gap-2">
           <button className="es-btn es-btn--jev" onClick={() => setDrawer("sketches")}>
             Create sketch
           </button>
           <button className="es-btn" onClick={letJevChoose}>
-            Let Jev choose
+            {OFFLINE ? "Random sketch" : "Let Jev choose"}
           </button>
         </div>
       </motion.div>

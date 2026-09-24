@@ -14,6 +14,7 @@ import type { Desk } from "@/lib/desk/desk";
 import type { BoardShape } from "@/lib/desk/types";
 import { MaterialSwatch } from "@/lib/paintEngine/MaterialSwatch";
 import { applyManual } from "@/state/jevController";
+import { OFFLINE } from "@/services/api";
 import { historyStats, useStudio } from "@/state/studio";
 
 import { DecisionHistory } from "./DecisionHistory";
@@ -38,16 +39,31 @@ function IdlePanel() {
       <div className={section}>
         <div className="flex items-center justify-between">
           <span className="es-label !text-bone">Jev system</span>
-          <span className="es-mono text-[10px] text-jev">{health?.jev.online ? "READY" : "STANDBY"}</span>
+          <span className="es-mono text-[10px] text-jev">{OFFLINE ? "DEMO" : health?.jev.online ? "READY" : "STANDBY"}</span>
         </div>
-        <p className="mt-6 text-[26px] font-medium leading-[1.05] tracking-[-0.03em]">
-          Select something
-          <br />
-          and I'll choose
-          <br />
-          <span className="text-jev">a material.</span>
-        </p>
-        <p className="mt-4 text-[12px] leading-relaxed text-ash">Click a sketch to analyse it, or take the Jev tool (J) and click any region to decide and paint in one move.</p>
+        {OFFLINE ? (
+          <>
+            <p className="mt-6 text-[26px] font-medium leading-[1.05] tracking-[-0.03em]">
+              Jev is offline
+              <br />
+              <span className="text-jev">on this demo.</span>
+            </p>
+            <p className="mt-4 text-[12px] leading-relaxed text-ash">
+              Everything else works: sketches, 121 materials, the canvas and manual painting. Click a material in the stream, then take the paint tool (B) and click a region. Run eSketcher locally to let Jev decide.
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="mt-6 text-[26px] font-medium leading-[1.05] tracking-[-0.03em]">
+              Select something
+              <br />
+              and I'll choose
+              <br />
+              <span className="text-jev">a material.</span>
+            </p>
+            <p className="mt-4 text-[12px] leading-relaxed text-ash">Click a sketch to analyse it, or take the Jev tool (J) and click any region to decide and paint in one move.</p>
+          </>
+        )}
       </div>
       <div className={`${section} grid grid-cols-2 gap-4`}>
         <div>
@@ -61,7 +77,7 @@ function IdlePanel() {
         <div className="col-span-2 flex items-center justify-between">
           <span className="es-label">provider</span>
           <span className="es-mono text-[11px] uppercase">
-            {health ? `${health.jev.mode} · ${health.jev.model}` : "unreachable"}
+            {OFFLINE ? "not deployed" : health ? `${health.jev.mode} · ${health.jev.model}` : "unreachable"}
           </span>
         </div>
       </div>
@@ -161,6 +177,12 @@ function TargetPanel({ desk, board }: { desk: Desk; board: BoardShape }) {
               Locked to <span className="text-warn">{materials.get(locked)?.name}</span>. Jev is bypassed for this sketch.
             </div>
           </div>
+        ) : !active && OFFLINE ? (
+          <NativeError code="offline">
+            <button className="es-btn es-btn--jev" onClick={() => setManual(true)}>
+              Pick a material
+            </button>
+          </NativeError>
         ) : !active ? (
           <button className="es-btn es-btn--jev w-full" onClick={decide}>
             <JevGlyph size={16} /> Ask Jev
