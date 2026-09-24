@@ -1,0 +1,49 @@
+# Ports are overridable because other arena apps also want 8000/5173:
+#   BACKEND_PORT=8010 FRONTEND_PORT=5180 docker compose up --build
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: esketcher-backend
+    env_file:
+      - ./backend/.env
+    environment:
+      DATABASE_URL: sqlite+aiosqlite:////data/esketcher.db
+    # The venv lives in an anonymous volume that outlives image rebuilds, so sync on
+    # every start (a no-op when nothing changed) instead of trusting a stale one.
+    command: sh -c "uv sync --frozen --no-dev && uv run --no-dev uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend:/app
+      - /app/.venv
+      - esketcher_data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: esketcher-frontend
+    env_file:
+      - ./frontend/.env
+    environment:
+      DEV_PROXY_TARGET: http://backend:8000
+    # node_modules is an anonymous volume that outlives image rebuilds; install on
+    # every start so new dependencies appear (seconds when nothing changed).
+    command: sh -c "npm install --no-audit --no-fund && npm run dev"
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  esketcher_data:
