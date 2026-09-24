@@ -2,7 +2,6 @@ import { boardArt, pageToArt } from "@/lib/canvas/boards";
 import { regionAtPoint } from "@/lib/canvas/hitTest";
 import type { RegionToolId } from "@/lib/desk/gestures";
 import type { BoardShape, Vec } from "@/lib/desk/types";
-import { OFFLINE } from "@/services/api";
 
 import { applyManual, requestDecision } from "./jevController";
 import { useStudio } from "./studio";
@@ -25,7 +24,7 @@ export function actOnRegion(tool: RegionToolId, board: BoardShape, page: Vec): v
   const regionId = regionUnder(board, page);
   desk.select([board.id]);
   store.setFocus({ boardId: board.id, regionId });
-  if (tool === "jev" && !OFFLINE) {
+  if (tool === "jev" && !store.offline) {
     void requestDecision({ boardId: board.id, regionId, autoApply: true });
   } else if (tool === "paint" || tool === "jev") {
     if (store.armedMaterial) applyManual(store.armedMaterial, { boardId: board.id, regionId });

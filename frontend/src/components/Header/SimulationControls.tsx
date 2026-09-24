@@ -1,6 +1,6 @@
 import { Pause, Play, Square } from "lucide-react";
 
-import { OFFLINE, OFFLINE_MESSAGE } from "@/services/api";
+import { OFFLINE_MESSAGE } from "@/services/api";
 import { pauseSampling, playSampling, stopSampling } from "@/state/sampling";
 import { pauseSimulation, startSimulation, stopSimulation } from "@/state/simulation";
 import { useStudio } from "@/state/studio";
@@ -8,6 +8,7 @@ import { useStudio } from "@/state/studio";
 /** Play: Jev fills every sketch on the desk, one region kind at a time. */
 export function SimulationControls() {
   const sim = useStudio((s) => s.sim);
+  const offline = useStudio((s) => s.offline);
   const hasBoards = useStudio((s) => Boolean(s.desk));
   // with a sampling carousel built, Play drives the carousel instead of the whole desk
   const sampling = useStudio((s) => s.sampling !== null);
@@ -28,9 +29,9 @@ export function SimulationControls() {
   return (
     <div className="flex items-center gap-2">
       <button
-        disabled={OFFLINE || !hasBoards || (sim.status === "done" && !sampling)}
+        disabled={offline || !hasBoards || (sim.status === "done" && !sampling)}
         onClick={() => (running ? pause() : void start())}
-        title={OFFLINE ? OFFLINE_MESSAGE : running ? "Pause after this decision" : sampling ? "Play the sampling carousel" : "Jev fills every sketch"}
+        title={offline ? OFFLINE_MESSAGE : running ? "Pause after this decision" : sampling ? "Play the sampling carousel" : "Jev fills every sketch"}
         aria-label={label}
         className={`es-focus flex h-8 shrink-0 items-center gap-2 rounded-full border px-3 transition-colors disabled:opacity-40 max-sm:w-8 max-sm:justify-center max-sm:px-0 ${
           running ? "border-jev bg-jev/10 text-jev" : sim.status === "error" ? "border-warn text-warn" : "border-jev/60 text-bone hover:bg-jev/10"

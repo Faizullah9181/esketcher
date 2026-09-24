@@ -2,7 +2,7 @@ import { motion } from "motion/react";
 import { Play, RotateCcw, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
-import { OFFLINE, OFFLINE_MESSAGE } from "@/services/api";
+import { OFFLINE_MESSAGE } from "@/services/api";
 import { SAMPLE_MAX, SAMPLE_MIN, buildSampling, playSampling, rewindSampling, stopSampling } from "@/state/sampling";
 import { useStudio } from "@/state/studio";
 import type { SketchCategory } from "@/types";
@@ -14,6 +14,7 @@ export function SamplingPanel() {
   const sketches = useStudio((s) => s.sketches);
   const run = useStudio((s) => s.sampling);
   const sim = useStudio((s) => s.sim.status);
+  const offline = useStudio((s) => s.offline);
   const setDrawer = useStudio((s) => s.setDrawer);
   const [count, setCount] = useState(run?.ids.length ?? 7);
   const [category, setCategory] = useState<SketchCategory | "mixed">("mixed");
@@ -71,13 +72,13 @@ export function SamplingPanel() {
           </select>
         </div>
         <p className="es-mono text-[10px] leading-relaxed text-dim">
-          Replaces the desk with {count} samples (⌘Z restores it). {OFFLINE ? OFFLINE_MESSAGE : `A run makes ${decisions} Jev decisions.`}
+          Replaces the desk with {count} samples (⌘Z restores it). {offline ? OFFLINE_MESSAGE : `A run makes ${decisions} Jev decisions.`}
         </p>
         <div className="grid grid-cols-2 gap-2">
           <button className="es-btn" onClick={build} disabled={sim === "running"}>
             {run ? "Rebuild" : "Build carousel"}
           </button>
-          <button className="es-btn es-btn--jev" onClick={run ? play : () => (build(), play())} disabled={OFFLINE || sim === "running"} title={OFFLINE ? OFFLINE_MESSAGE : undefined}>
+          <button className="es-btn es-btn--jev" onClick={run ? play : () => (build(), play())} disabled={offline || sim === "running"} title={offline ? OFFLINE_MESSAGE : undefined}>
             <Play size={13} className="fill-current" /> Play
           </button>
         </div>

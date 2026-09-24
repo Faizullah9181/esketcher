@@ -7,7 +7,7 @@ import { focusBoard, isBoard, listBoards } from "@/lib/canvas/boards";
 import type { Desk } from "@/lib/desk/desk";
 import { stopSampling } from "@/state/sampling";
 import { stopSimulation } from "@/state/simulation";
-import { OFFLINE, OFFLINE_MESSAGE } from "@/services/api";
+import { OFFLINE_MESSAGE } from "@/services/api";
 import { useStudio, type Drawer } from "@/state/studio";
 
 import { SimulationControls } from "./SimulationControls";
@@ -147,11 +147,12 @@ function JevStatus() {
   const jev = health?.jev;
   const apiUp = Boolean(health);
   const jevUp = Boolean(jev?.online);
-  if (OFFLINE)
+  const offline = useStudio((s) => s.offline);
+  if (offline)
     return (
       <div className="flex items-center gap-2" title={OFFLINE_MESSAGE}>
         <span className="es-label !text-bone">Jev</span>
-        <span className="es-dot bg-warn" aria-label="Jev offline on this demo" />
+        <span className="es-dot bg-warn" aria-label="Jev offline: server unreachable" />
         <span className="es-mono hidden text-[10px] uppercase tracking-[0.14em] text-ash lg:inline">demo · offline</span>
       </div>
     );
