@@ -1,4 +1,4 @@
-# eSketcher
+# eSketcher 1.0
 
 A generative painting instrument. You select part of a sketch; **Jev** (TypeSafe's System One model) decides which paint material it should get; the material leaves the stream at the bottom of the screen, flies across the desk and paints itself in.
 
